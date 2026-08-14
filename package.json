@@ -1,0 +1,62 @@
+{
+  "name": "jundsh-desktop",
+  "productName": "JUNDSH",
+  "version": "1.0.0",
+  "description": "JUNDSH — 黑色鲸鱼标志的 DSH 桌面客户端",
+  "main": "src/main.js",
+  "author": "JUNDSH",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "icons": "node scripts/gen-icons.mjs",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.jundsh.desktop",
+    "productName": "JUNDSH",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**",
+      "assets/**",
+      "build/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "JUNDSH",
+      "artifactName": "JUNDSH-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "JUNDSH-${version}-portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^42.8.0",
+    "electron-builder": "^26.15.3",
+    "sharp": "^0.35.3"
+  }
+}

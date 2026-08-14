@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'none'"/>
+<title>JUNDSH · DSH 桌面端</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+    user-select: none;
+  }
+  body { display: grid; place-items: center; }
+
+  .splash-card {
+    position: relative;
+    width: 400px;
+    height: 268px;
+    border-radius: 26px;
+    background:
+      radial-gradient(130% 90% at 50% 0%, rgba(110, 143, 255, 0.16) 0%, rgba(110, 143, 255, 0) 55%),
+      linear-gradient(180deg, #131b2d 0%, #0c1220 100%);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* 气泡 */
+  .bubbles i {
+    position: absolute;
+    bottom: -18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.5), rgba(110, 143, 255, 0.12));
+    animation: rise linear infinite;
+  }
+  .bubbles i:nth-child(1) { left: 12%; width: 9px; height: 9px; animation-duration: 5.2s; animation-delay: 0s; }
+  .bubbles i:nth-child(2) { left: 26%; width: 5px; height: 5px; animation-duration: 6.4s; animation-delay: 1.2s; }
+  .bubbles i:nth-child(3) { right: 22%; width: 7px; height: 7px; animation-duration: 5.8s; animation-delay: 0.6s; }
+  .bubbles i:nth-child(4) { right: 12%; width: 4px; height: 4px; animation-duration: 7s; animation-delay: 2s; }
+  @keyframes rise {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    8% { opacity: 0.7; }
+    100% { transform: translateY(-300px) scale(1.25); opacity: 0; }
+  }
+
+  .whale-hold { position: relative; margin-bottom: 18px; }
+  .whale-hold img {
+    width: 88px; height: 88px;
+    filter: drop-shadow(0 0 28px rgba(77, 107, 254, 0.6));
+    animation: floaty 3s ease-in-out infinite;
+  }
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-9px) rotate(3deg); }
+  }
+
+  .wordmark {
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    color: #eef2fb;
+    text-shadow: 0 2px 14px rgba(77, 107, 254, 0.45);
+  }
+  .sub {
+    margin-top: 5px;
+    font-size: 10.5px;
+    letter-spacing: 5px;
+    color: #7c88a6;
+    text-transform: uppercase;
+  }
+
+  .bar {
+    margin-top: 22px;
+    width: 168px; height: 4px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.14);
+    overflow: hidden;
+    position: relative;
+  }
+  .bar-inner {
+    position: absolute; inset: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #4d6bfe, #6e8fff, #9db8ff, #6e8fff, #4d6bfe);
+    background-size: 200% 100%;
+    animation: sweep 1.4s linear infinite;
+  }
+  @keyframes sweep {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .caption {
+    margin-top: 12px;
+    font-size: 12px;
+    color: #7c88a6;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+  <div class="splash-card">
+    <div class="bubbles"><i></i><i></i><i></i><i></i></div>
+    <div class="whale-hold"><img src="../assets/whale-white.svg" alt=""/></div>
+    <div class="wordmark">JUNDSH</div>
+    <div class="sub">DSH Desktop</div>
+    <div class="bar"><div class="bar-inner"></div></div>
+    <div class="caption">正在唤醒小鲸鱼…</div>
+  </div>
+</body>
+</html>

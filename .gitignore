@@ -1,0 +1,7 @@
+node_modules/
+release/
+screenshots/
+debug-run.log
+*.log
+Thumbs.db
+.DS_Store

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:"/>
+<title>JUNDSH · DSH 桌面端</title>
+<link rel="stylesheet" href="shell.css"/>
+</head>
+<body>
+  <!-- 自定义标题栏 -->
+  <header id="titlebar">
+    <div class="tb-group left">
+      <img class="tb-logo" src="../assets/whale.svg" alt="JUNDSH"/>
+      <span class="tb-name">JUNDSH</span>
+      <span class="tb-sub">DSH 桌面端</span>
+    </div>
+
+    <div class="tb-group center">
+      <button id="btn-back" class="nav-btn" title="后退">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button id="btn-fwd" class="nav-btn" title="前进">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <button id="btn-reload" class="nav-btn" title="刷新">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
+      </button>
+    </div>
+
+    <div class="tb-group right">
+      <span id="status-pill" class="pill pill-connecting"><i></i><span id="status-text">连接中</span></span>
+      <button id="btn-open" class="nav-btn" title="在浏览器中打开">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </button>
+      <button id="btn-settings" class="nav-btn" title="设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <div class="divider"></div>
+      <button id="btn-min" class="win-btn" title="最小化">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button id="btn-max" class="win-btn" title="最大化">
+        <svg class="ic-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="5.5" y="5.5" width="13" height="13" rx="2"/></svg>
+        <svg class="ic-restore" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8.5" width="10.5" height="10.5" rx="2"/><path d="M8.5 5.5V5a2 2 0 0 1 2-2H19a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-.5"/></svg>
+      </button>
+      <button id="btn-close" class="win-btn danger" title="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <main id="stage">
+    <webview id="gui" allowpopups></webview>
+
+    <!-- 首次加载遮罩 -->
+    <div id="veil" class="veil">
+      <img class="veil-whale" src="../assets/whale.svg" alt=""/>
+    </div>
+
+    <!-- 离线休息页 -->
+    <div id="offline" class="offline hidden">
+      <div class="offline-card">
+        <div class="whale-wrap">
+          <img class="whale-img" src="../assets/whale.svg" alt=""/>
+          <span class="zzz z1">z</span>
+          <span class="zzz z2">Z</span>
+          <span class="zzz z3">z</span>
+        </div>
+        <h2>小鲸鱼正在休息</h2>
+        <p class="offline-desc">连接不上 DSH 服务</p>
+        <p class="offline-url" id="offline-url"></p>
+        <p class="offline-hint" id="offline-hint">5 秒后自动重试…</p>
+        <button class="btn primary" id="btn-retry">立即重试</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 设置 -->
+  <div id="settings" class="modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <img class="tb-logo" src="../assets/whale.svg" alt=""/>
+        <h2>设置</h2>
+        <span class="spacer"></span>
+        <button id="btn-settings-close" class="nav-btn" title="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="input-url">DSH 服务地址</label>
+          <input id="input-url" type="text" spellcheck="false" autocomplete="off" placeholder="http://127.0.0.1:8080"/>
+          <p class="field-hint">小鲸鱼将在这里连接你的 DSH 服务</p>
+        </div>
+        <div class="field">
+          <label for="input-zoom">界面缩放 <span id="zoom-val" class="badge">100%</span></label>
+          <input id="input-zoom" type="range" min="50" max="200" step="5" value="100"/>
+        </div>
+        <div class="field">
+          <label>外观模式</label>
+          <div class="seg" id="seg-theme">
+            <button class="seg-btn" data-theme="system" title="跟随 Windows 深浅色">跟随系统</button>
+            <button class="seg-btn" data-theme="light" title="浅色外壳">浅色</button>
+            <button class="seg-btn" data-theme="dark" title="深色外壳">深色</button>
+          </div>
+        </div>
+        <div class="field row">
+          <div class="grow">
+            <label>关闭时最小化到托盘</label>
+            <p class="field-hint">点击关闭按钮后，小鲸鱼会游到托盘里休息</p>
+          </div>
+          <label class="switch">
+            <input id="input-tray" type="checkbox"/>
+            <span class="knob"></span>
+          </label>
+        </div>
+        <div class="field row">
+          <div class="grow">
+            <label>开机自启</label>
+            <p class="field-hint">登录 Windows 后自动唤醒小鲸鱼</p>
+          </div>
+          <label class="switch">
+            <input id="input-login" type="checkbox"/>
+            <span class="knob"></span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <span class="foot-info">v<span id="app-version">1.0.0</span> · JUNDSH</span>
+        <span class="spacer"></span>
+        <button class="btn ghost" id="btn-reset">恢复默认</button>
+        <button class="btn primary" id="btn-save">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="shell.js"></script>
+</body>
+</html>
