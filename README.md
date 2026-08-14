@@ -2,6 +2,10 @@
 
 黑色鲸鱼标志的 DeepSeek Harness 桌面客户端。
 
+<p align="center">
+  <img src="assets/branding/jundsh-social-1280x640.png" alt="JUNDSH · DSH 桌面端" width="720"/>
+</p>
+
 ## 功能
 
 - 🐳 **黑色鲸鱼标志**：应用图标（白底黑鲸）、托盘、标题栏、启动画面全部使用官方鲸鱼标志 —— 浅色主题下显示黑色，深色主题下自动切换为白色
@@ -61,8 +65,11 @@ npm run dist      # 打包 Windows 安装包 (NSIS + 便携版)
 ```
 dsh-desktop/
 ├── assets/            # 鲸鱼 SVG（whale.svg 官方标志，浅色黑/深色白自适应）
+│   └── branding/      # 品牌宣传图（朋友圈方形图 / GitHub social preview / 透明 logo）
 ├── build/             # 生成的应用图标（icon.ico / icon.png / tray.png，白底黑鲸）
-├── scripts/gen-icons.mjs   # 图标生成器（解析鲸鱼路径、自动居中、多尺寸）
+├── scripts/
+│   ├── gen-icons.mjs      # 图标生成器（解析鲸鱼路径、自动居中、多尺寸）
+│   └── gen-branding.mjs   # 品牌图生成器（Electron 渲染：方形 1080 / social 1280x640 / logo 512）
 ├── src/
 │   ├── main.js        # 主进程：窗口/托盘/主题/设置/下载/单实例
 │   ├── preload.js     # 安全桥接
