@@ -16,21 +16,66 @@
   }
   body { display: grid; place-items: center; }
 
+  /* 旋转渐变边框卡片（DeepSeek Harness 官网风格）
+     ::before 超大 conic-gradient + transform 旋转，不依赖 @property */
   .splash-card {
     position: relative;
     width: 400px;
     height: 268px;
-    border-radius: 26px;
+    border-radius: 18px;
+    overflow: hidden;
     background:
-      radial-gradient(130% 90% at 50% 0%, rgba(110, 143, 255, 0.16) 0%, rgba(110, 143, 255, 0) 55%),
-      linear-gradient(180deg, #131b2d 0%, #0c1220 100%);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      radial-gradient(130% 90% at 50% 0%, rgba(42, 95, 158, 0.35) 0%, rgba(42, 95, 158, 0) 55%),
+      linear-gradient(135deg, hsla(0, 0%, 100%, 0.07), hsla(0, 0%, 100%, 0) 45%),
+      linear-gradient(#16181d, #121418);
+    box-shadow:
+      0 0 0 1px hsla(0, 0%, 100%, 0.05),
+      0 0 100px rgba(103, 158, 254, 0.12),
+      0 24px 70px rgba(0, 0, 0, 0.65),
+      inset 0 1px 0 hsla(0, 0%, 100%, 0.06);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+  }
+  .splash-card::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 300%; height: 300%;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(from 0deg,
+      rgba(58, 101, 194, 0.2) 0deg,
+      rgba(120, 170, 255, 0.85) 90deg,
+      rgba(58, 101, 194, 0.2) 180deg,
+      rgba(120, 170, 255, 0.85) 270deg,
+      rgba(58, 101, 194, 0.2) 360deg);
+    animation: border-rotate 6s linear infinite;
+    pointer-events: none;
+  }
+  .splash-card::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: 17px;
+    background: linear-gradient(#16181d, #121418);
+    pointer-events: none;
+  }
+  @keyframes border-rotate {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  /* 内容层浮在边框之上 */
+  .splash-card > * { position: relative; z-index: 1; }
+
+  /* 微网格 */
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(hsla(0, 0%, 100%, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, hsla(0, 0%, 100%, 0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(100% 100% at 50% 30%, rgba(0, 0, 0, 0.8), transparent 85%);
   }
 
   /* 气泡 */
@@ -38,7 +83,7 @@
     position: absolute;
     bottom: -18px;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.5), rgba(110, 143, 255, 0.12));
+    background: radial-gradient(circle at 35% 30%, rgba(168, 198, 255, 0.55), rgba(103, 158, 254, 0.12));
     animation: rise linear infinite;
   }
   .bubbles i:nth-child(1) { left: 12%; width: 9px; height: 9px; animation-duration: 5.2s; animation-delay: 0s; }
@@ -51,10 +96,10 @@
     100% { transform: translateY(-300px) scale(1.25); opacity: 0; }
   }
 
-  .whale-hold { position: relative; margin-bottom: 18px; }
+  .whale-hold { position: relative; margin-bottom: 18px; z-index: 1; }
   .whale-hold img {
     width: 88px; height: 88px;
-    filter: drop-shadow(0 0 28px rgba(77, 107, 254, 0.6));
+    filter: drop-shadow(0 0 30px rgba(103, 158, 254, 0.55)) drop-shadow(0 6px 20px rgba(0, 0, 0, 0.5));
     animation: floaty 3s ease-in-out infinite;
   }
   @keyframes floaty {
@@ -63,32 +108,37 @@
   }
 
   .wordmark {
+    position: relative; z-index: 1;
     font-size: 21px;
-    font-weight: 600;
-    letter-spacing: 4px;
-    color: #eef2fb;
-    text-shadow: 0 2px 14px rgba(77, 107, 254, 0.45);
+    font-weight: 700;
+    letter-spacing: 5px;
+    background: linear-gradient(135deg, #a8c6ff 0%, #679efe 55%, #4a8ac4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 14px rgba(103, 158, 254, 0.4));
   }
   .sub {
+    position: relative; z-index: 1;
     margin-top: 5px;
     font-size: 10.5px;
     letter-spacing: 5px;
-    color: #7c88a6;
+    color: #6a7078;
     text-transform: uppercase;
   }
 
   .bar {
+    position: relative; z-index: 1;
     margin-top: 22px;
     width: 168px; height: 4px;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.14);
+    background: hsla(0, 0%, 100%, 0.1);
     overflow: hidden;
-    position: relative;
   }
   .bar-inner {
     position: absolute; inset: 0;
     border-radius: 999px;
-    background: linear-gradient(90deg, #4d6bfe, #6e8fff, #9db8ff, #6e8fff, #4d6bfe);
+    background: linear-gradient(90deg, #1a3870, #4a8ac4, #a8c6ff, #4a8ac4, #1a3870);
     background-size: 200% 100%;
     animation: sweep 1.4s linear infinite;
   }
@@ -98,15 +148,17 @@
   }
 
   .caption {
+    position: relative; z-index: 1;
     margin-top: 12px;
     font-size: 12px;
-    color: #7c88a6;
+    color: #6a7078;
     letter-spacing: 1px;
   }
 </style>
 </head>
 <body>
   <div class="splash-card">
+    <div class="grid"></div>
     <div class="bubbles"><i></i><i></i><i></i><i></i></div>
     <div class="whale-hold"><img src="../assets/whale-white.svg" alt=""/></div>
     <div class="wordmark">JUNDSH</div>

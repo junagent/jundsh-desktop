@@ -61,26 +61,29 @@
 
     <!-- 离线休息页 -->
     <div id="offline" class="offline hidden">
-      <div class="offline-card">
-        <div class="whale-wrap">
-          <img class="whale-img" src="../assets/whale.svg" alt=""/>
-          <span class="zzz z1">z</span>
-          <span class="zzz z2">Z</span>
-          <span class="zzz z3">z</span>
+      <div class="offline-card border-card">
+        <div class="card-inner">
+          <div class="whale-wrap">
+            <img class="whale-img" src="../assets/whale.svg" alt=""/>
+            <span class="zzz z1">z</span>
+            <span class="zzz z2">Z</span>
+            <span class="zzz z3">z</span>
+          </div>
+          <h2>小鲸鱼正在休息</h2>
+          <p class="offline-desc">连接不上 DSH 服务</p>
+          <p class="offline-url" id="offline-url"></p>
+          <p class="offline-hint" id="offline-hint">5 秒后自动重试…</p>
+          <button class="btn primary" id="btn-retry">立即重试</button>
         </div>
-        <h2>小鲸鱼正在休息</h2>
-        <p class="offline-desc">连接不上 DSH 服务</p>
-        <p class="offline-url" id="offline-url"></p>
-        <p class="offline-hint" id="offline-hint">5 秒后自动重试…</p>
-        <button class="btn primary" id="btn-retry">立即重试</button>
       </div>
     </div>
   </main>
 
   <!-- 设置 -->
   <div id="settings" class="modal">
-    <div class="modal-card">
-      <div class="modal-head">
+    <div class="modal-card border-card">
+      <div class="card-inner">
+        <div class="modal-head">
         <img class="tb-logo" src="../assets/whale.svg" alt=""/>
         <h2>设置</h2>
         <span class="spacer"></span>
@@ -132,6 +135,7 @@
         <span class="spacer"></span>
         <button class="btn ghost" id="btn-reset">恢复默认</button>
         <button class="btn primary" id="btn-save">完成</button>
+      </div>
       </div>
     </div>
   </div>
