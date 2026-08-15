@@ -7,6 +7,10 @@ on:
       - 'v*'
   workflow_dispatch: # 也支持手动触发（不发布）
 
+# 显式授予权限：需要写 contents 才能上传 release assets
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
