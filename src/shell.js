@@ -90,7 +90,11 @@ function toast(msg) {
 }
 
 // ---------------- 设置弹窗 ----------------
-function openSettings() {
+async function openSettings() {
+  // 实时刷新（自启状态可能被用户在系统层修改，避免用 init 时的旧缓存）
+  try {
+    settings = await desktop.getSettings()
+  } catch { /* 保持旧值 */ }
   $('input-url').value = settings.targetUrl
   $('input-zoom').value = Math.round(settings.zoomFactor * 100)
   updateZoomFill()

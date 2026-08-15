@@ -127,10 +127,10 @@ function buildIco(entries) {
 write('build/icon.ico', buildIco(pngs))
 
 // 托盘图标：白底圆角小方块 + 黑色鲸鱼（深浅托盘都可见）
-{
-  const size = 32
+// 生成 32px 与 64px(@2x，高分屏自动选用)
+function traySvg(size) {
   const { scale, cx, cy } = fit(size, size * 0.16)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <defs>
     <linearGradient id="tbw" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#FFFFFF"/>
@@ -138,16 +138,19 @@ write('build/icon.ico', buildIco(pngs))
     </linearGradient>
   </defs>
   <rect x="0" y="0" width="${size}" height="${size}" rx="${size * 0.28}" fill="url(#tbw)"/>
-  <rect x="0.7" y="0.7" width="${size - 1.4}" height="${size - 1.4}" rx="${size * 0.25}" fill="none" stroke="#0B1220" stroke-opacity="0.14" stroke-width="0.9"/>
+  <rect x="${size * 0.022}" y="${size * 0.022}" width="${size * 0.956}" height="${size * 0.956}" rx="${size * 0.25}" fill="none" stroke="#0B1220" stroke-opacity="0.14" stroke-width="${size * 0.028}"/>
   <g transform="translate(${cx} ${cy}) scale(${scale})">
     <path d="${d}" fill="#0B1220"/>
   </g>
 </svg>
 `
-  write('build/tray.png', await sharp(Buffer.from(svg)).png().toBuffer())
+}
+{
+  write('build/tray.png', await sharp(Buffer.from(traySvg(32))).png().toBuffer())
+  write('build/tray@2x.png', await sharp(Buffer.from(traySvg(64))).png().toBuffer())
 }
 
 console.log('图标生成完成:')
-for (const f of ['build/icon.ico', 'build/icon.png', 'build/tray.png', 'assets/whale-white.svg']) {
+for (const f of ['build/icon.ico', 'build/icon.png', 'build/tray.png', 'build/tray@2x.png', 'assets/whale-white.svg']) {
   console.log('  ', f, fs.statSync(path.join(root, f)).size, 'bytes')
 }

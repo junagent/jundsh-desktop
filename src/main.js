@@ -3,6 +3,7 @@
 
 const { app, BrowserWindow, Tray, Menu, ipcMain, shell, session, nativeImage, nativeTheme, screen, webContents, Notification } = require('electron')
 const { autoUpdater } = require('electron-updater')
+const { execFileSync } = require('node:child_process')
 const path = require('node:path')
 const fs = require('node:fs')
 
@@ -60,6 +61,21 @@ function sanitizeBounds(b) {
 
 function applyTheme() {
   nativeTheme.themeSource = settings?.theme ?? 'system'
+}
+
+// 开机自启状态：以 HKCU Run 注册表键为准（app.getLoginItemSettings 在用户通过
+// 任务管理器/设置禁用后可能与 OS 状态不同步，见 electron#20122）
+function getLoginItemState() {
+  try {
+    const out = execFileSync('reg', [
+      'query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run',
+      '/v', APP_NAME,
+    ], { encoding: 'utf8', timeout: 3000, windowsHide: true })
+    return out.includes(APP_NAME)
+  } catch {
+    // 键不存在 = 未开启；也回退官方 API 兜底
+    return app.getLoginItemSettings().openAtLogin
+  }
 }
 
 // 设置写入防抖：频繁改动（缩放滑块等）合并为一次落盘；immediate=true 立即写
@@ -399,7 +415,7 @@ function registerIpc() {
     appName: APP_NAME,
     defaultUrl: DEFAULT_URL,
     dark: nativeTheme.shouldUseDarkColors,
-    loginItem: app.getLoginItemSettings().openAtLogin,
+    loginItem: getLoginItemState(),
   })))
   ipcMain.handle('app:set-settings', guard((_e, patch) => {
     if (patch && typeof patch === 'object') {
