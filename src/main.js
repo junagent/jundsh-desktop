@@ -9,6 +9,8 @@ const fs = require('node:fs')
 const APP_NAME = 'JUNDSH'
 const DEFAULT_URL = 'http://127.0.0.1:8080'
 const DEBUG_SHOT = !!process.env.DSH_DESKTOP_SHOT // 调试：截图后退出
+// 便携版（electron-builder portable target 解压运行）不支持自动更新
+const IS_PORTABLE = process.env.PORTABLE_EXECUTABLE_DIR !== undefined
 
 let mainWindow = null
 let splashWindow = null
@@ -132,7 +134,7 @@ function createMainWindow() {
     minHeight: 600,
     title: APP_NAME,
     icon: buildDir('icon.png'),
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0B0F17' : '#F3F5F9',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#101113' : '#f4f5f7',
     show: false,
     frame: false,
     titleBarStyle: 'hidden',
@@ -153,7 +155,7 @@ function createMainWindow() {
   mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
     console.error('[jundsh] shell 加载失败:', code, desc, url)
   })
-  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
     console.error('[jundsh] shell 渲染进程退出:', JSON.stringify(details))
   })
   mainWindow.webContents.on('console-message', (event) => {
@@ -285,6 +287,10 @@ function showMainWindow() {
 // ---------------- 自动更新（基于 GitHub Releases） ----------------
 function setupAutoUpdate() {
   if (!app.isPackaged) return // 开发模式跳过（无 app-update.yml）
+  if (IS_PORTABLE) {
+    console.log('[jundsh] 便携版不支持自动更新，请使用安装版')
+    return
+  }
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
 
@@ -306,6 +312,7 @@ function setupAutoUpdate() {
   })
   autoUpdater.on('error', (err) => {
     console.error('[jundsh] 自动更新失败:', err && err.message)
+    mainWindow?.webContents.send('app:toast', '检查更新失败，请稍后重试')
   })
 
   // 启动 8 秒后静默检查（避开启动高峰期）
@@ -343,6 +350,7 @@ function createTray() {
     { label: '设置…', click: () => mainWindow?.webContents.send('app:command', 'open-settings') },
     { label: '检查更新…', click: () => {
       if (!app.isPackaged) { mainWindow?.webContents.send('app:toast', '开发模式不检查更新'); return }
+      if (IS_PORTABLE) { mainWindow?.webContents.send('app:toast', '便携版不支持自动更新，请下载安装版'); return }
       autoUpdater.checkForUpdates().catch((err) => console.error('[jundsh] 检查更新出错:', err && err.message))
     } },
     { type: 'separator' },
@@ -409,7 +417,7 @@ function registerIpc() {
       }
       if (typeof patch.loginItem === 'boolean') {
         app.setLoginItemSettings({ openAtLogin: patch.loginItem })
-        settings.loginItem = patch.loginItem
+        // 注意：不持久化 loginItem，读取时实时来自 getLoginItemSettings
       }
       saveSettings()
     }

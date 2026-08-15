@@ -25,7 +25,15 @@
 - 🔗 **外部链接**：页面中的外部链接自动用系统浏览器打开，下载文件自动存入下载目录
 - 🪟 **窗口记忆**：记住窗口位置与最大化状态，关闭后原样恢复
 - 🔑 单实例运行
-- 🔄 **自动更新**：基于 GitHub Releases，启动后自动检查新版本，下载完成通知重启安装（托盘菜单可手动检查）
+- 🔄 **自动更新**：基于 GitHub Releases，启动后自动检查新版本，下载完成通知重启安装（托盘菜单可手动检查；仅安装版支持，便携版请用安装版以享受自动更新）
+
+## 界面预览
+
+<p align="center">
+  <img src="assets/branding/offline-page.png" alt="离线休息页（DeepSeek Harness 官网风格设计）" width="720"/>
+</p>
+
+> 视觉语言参考 DeepSeek Harness 官网：品牌蓝 `#679EFE`、旋转渐变边框、玻璃拟态、微网格与光晕。
 
 ## 开发
 
@@ -47,8 +55,8 @@ git push --follow-tags   # CI 自动构建并发布 Release（.github/workflows/
 > CI 使用 `GITHUB_TOKEN` 自动发布，无需手动上传安装包。
 
 打包产物位于 `release/`：
-- `JUNDSH-Setup-x.y.z.exe` — 安装版
-- `JUNDSH-x.y.z-portable.exe` — 免安装便携版
+- `JUNDSH-Setup-x.y.z.exe` — 安装版（**推荐**，支持自动更新）
+- `JUNDSH-x.y.z-portable.exe` — 免安装便携版（⚠️ 不支持自动更新，需手动下载新版覆盖）
 
 > 国内网络打包时建议设置镜像：
 > ```bash

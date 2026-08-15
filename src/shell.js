@@ -50,7 +50,9 @@ function persistZoom() {
   }, 400)
 }
 function zoomBy(delta) {
-  const z = Math.min(2, Math.max(0.5, Math.round((gui.getZoomFactor() + delta) * 20) / 20))
+  let cur = 1
+  try { cur = gui.getZoomFactor() } catch { /* webview 未就绪，按默认缩放 */ }
+  const z = Math.min(2, Math.max(0.5, Math.round((cur + delta) * 20) / 20))
   applyZoom(z)
   $('input-zoom').value = Math.round(z * 100)
   updateZoomFill()
@@ -189,6 +191,7 @@ async function init() {
     $('input-tray').checked = true
     $('input-login').checked = false
     setSegTheme('system')
+    toast('已恢复默认，点击「完成」保存')
   })
   $('btn-settings-close').addEventListener('click', closeSettings)
   $('settings').addEventListener('click', (e) => { if (e.target === $('settings')) closeSettings() })
@@ -228,7 +231,6 @@ async function init() {
 }
 
 function setMaximized(max) {
-  document.body.classList.toggle('maximized', max)
   $('btn-max').classList.toggle('restore', max)
   $('btn-max').title = max ? '还原' : '最大化'
 }
