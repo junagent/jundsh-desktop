@@ -10,6 +10,7 @@
     "start": "electron .",
     "icons": "node scripts/gen-icons.mjs",
     "branding": "electron scripts/gen-branding.mjs",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/shell.js && node --check scripts/gen-icons.mjs && node --check scripts/gen-branding.mjs",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win"
   },
