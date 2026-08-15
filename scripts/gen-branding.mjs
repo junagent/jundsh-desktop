@@ -30,7 +30,7 @@ const bubbles = () => `
 const whaleMark = (size) => `
   <div class="whale" style="width:${size}px;height:${size}px">
     <svg width="${size}" height="${size}" viewBox="0 0 50 50" fill="none"
-         style="filter:drop-shadow(0 ${Math.round(size * 0.05)}px ${Math.round(size * 0.16)}px rgba(5,10,20,.55)) drop-shadow(0 0 ${Math.round(size * 0.22)}px rgba(90,120,255,.42))">
+         style="filter:drop-shadow(0 ${Math.round(size * 0.05)}px ${Math.round(size * 0.16)}px rgba(5,10,20,.55)) drop-shadow(0 0 ${Math.round(size * 0.22)}px rgba(103,158,254,.42))">
       <path d="${d}" fill="#ffffff"/>
     </svg>
   </div>`
@@ -42,9 +42,9 @@ const baseCss = `
     font-family:${FONT};
     background:
       radial-gradient(120% 95% at 50% -5%, rgba(77,107,254,.16) 0%, rgba(77,107,254,0) 55%),
-      radial-gradient(110% 70% at 50% 118%, rgba(38,58,118,.30) 0%, rgba(38,58,118,0) 60%),
-      linear-gradient(180deg, #111c30 0%, #0b0f17 100%);
-    color:#eef2fb;
+      radial-gradient(110% 70% at 50% 118%, rgba(26,56,112,.30) 0%, rgba(26,56,112,0) 60%),
+      linear-gradient(180deg, #16181d 0%, #101113 100%);
+    color:#e6e8ea;
     user-select:none;
   }
   .grid {
@@ -57,7 +57,7 @@ const baseCss = `
   }
   .bubbles i {
     position:absolute; border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), rgba(110,143,255,.14));
+    background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), rgba(120,170,255,.14));
     opacity:0;
     animation:rise linear infinite;
   }
@@ -77,18 +77,18 @@ ${baseCss}
   .halo {
     position:absolute; left:50%; top:41%; width:560px; height:300px;
     transform:translate(-50%,-50%);
-    background:radial-gradient(50% 50% at 50% 50%, rgba(90,120,255,.20), rgba(90,120,255,0) 70%);
+    background:radial-gradient(50% 50% at 50% 50%, rgba(103,158,254,.20), rgba(103,158,254,0) 70%);
     filter:blur(6px);
   }
   .whale { position:relative; margin-top:220px; animation:floaty 4.5s ease-in-out infinite; }
   @keyframes floaty { 0%,100%{ transform:translateY(0) rotate(-1.5deg);} 50%{ transform:translateY(-12px) rotate(1.5deg);} }
   .title { margin-top:56px; font-size:104px; font-weight:700; letter-spacing:.28em; text-indent:.28em;
     text-shadow:0 4px 30px rgba(77,107,254,.45); }
-  .sub { margin-top:20px; font-size:25px; letter-spacing:.55em; text-indent:.55em; color:#8b96b3; font-weight:600; }
+  .sub { margin-top:20px; font-size:25px; letter-spacing:.55em; text-indent:.55em; color:#81858c; font-weight:600; }
   .divider { margin-top:34px; width:120px; height:2px; border-radius:2px;
-    background:linear-gradient(90deg, transparent, rgba(110,143,255,.8), transparent); }
-  .tag { margin-top:30px; font-size:20px; letter-spacing:.4em; text-indent:.4em; color:#5f6b85; font-weight:600; }
-  .foot { position:absolute; bottom:44px; font-size:17px; letter-spacing:.18em; color:#3f4a63; font-weight:600; }
+    background:linear-gradient(90deg, transparent, rgba(120,170,255,.8), transparent); }
+  .tag { margin-top:30px; font-size:20px; letter-spacing:.4em; text-indent:.4em; color:#5c6068; font-weight:600; }
+  .foot { position:absolute; bottom:44px; font-size:17px; letter-spacing:.18em; color:#4a4e55; font-weight:600; }
 </style></head><body>
   <div class="wrap">
     <div class="grid"></div>
@@ -114,14 +114,14 @@ ${baseCss}
   @keyframes floaty { 0%,100%{ transform:translateY(0) rotate(-1.5deg);} 50%{ transform:translateY(-10px) rotate(1.5deg);} }
   .right { position:relative; flex:1; padding-right:72px; }
   .title { font-size:76px; font-weight:700; letter-spacing:.22em; text-shadow:0 4px 30px rgba(77,107,254,.45); }
-  .sub { margin-top:14px; font-size:21px; letter-spacing:.42em; color:#8b96b3; font-weight:600; }
+  .sub { margin-top:14px; font-size:21px; letter-spacing:.42em; color:#81858c; font-weight:600; }
   .divider { margin-top:30px; width:120px; height:2px; border-radius:2px;
-    background:linear-gradient(90deg, rgba(110,143,255,.85), transparent); }
+    background:linear-gradient(90deg, rgba(120,170,255,.85), transparent); }
   .feats { margin-top:30px; display:flex; flex-direction:column; gap:12px; }
   .feat { display:flex; align-items:center; gap:14px; font-size:19px; color:#aeb8d2; letter-spacing:.06em; font-weight:500; }
-  .dot { width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,#6e8fff,#4d6bfe);
+  .dot { width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,#4a8ac4,#679efe);
     box-shadow:0 0 12px rgba(77,107,254,.8); flex:none; }
-  .foot { position:absolute; left:584px; bottom:34px; font-size:16px; letter-spacing:.22em; color:#3f4a63; font-weight:600; }
+  .foot { position:absolute; left:584px; bottom:34px; font-size:16px; letter-spacing:.22em; color:#4a4e55; font-weight:600; }
 </style></head><body>
   <div class="wrap">
     <div class="grid"></div>
@@ -148,7 +148,7 @@ function logoPage() {
   * { margin:0; padding:0; }
   html,body { width:100%; height:100%; overflow:hidden; background:transparent; }
   body { display:grid; place-items:center; }
-  svg { filter:drop-shadow(0 6px 24px rgba(5,10,20,.5)) drop-shadow(0 0 46px rgba(90,120,255,.5)); }
+  svg { filter:drop-shadow(0 6px 24px rgba(5,10,20,.5)) drop-shadow(0 0 46px rgba(103,158,254,.5)); }
 </style></head><body>
   <svg width="440" height="440" viewBox="0 0 50 50" fill="none">
     <path d="${d}" fill="#ffffff"/>
