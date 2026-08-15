@@ -52,7 +52,7 @@
 
   <!-- 主内容区 -->
   <main id="stage">
-    <webview id="gui" allowpopups></webview>
+    <webview id="gui" allowpopups webpreferences="contextIsolation=yes, nodeIntegration=no, sandbox=yes, spellcheck=no"></webview>
 
     <!-- 首次加载遮罩 -->
     <div id="veil" class="veil">

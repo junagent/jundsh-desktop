@@ -1,0 +1,36 @@
+name: Build & Release
+
+# 打 v* 标签时自动构建 Windows 安装包并发布到 GitHub Releases
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: # 也支持手动触发（不发布）
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build & publish
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 国内网络镜像（CI 默认可达 GitHub，无需设置；如遇网络问题可打开）
+          # ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          # ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+
+      - name: Verify artifacts
+        run: |
+          Get-ChildItem release -ErrorAction SilentlyContinue | Select-Object Name, Length

@@ -1,7 +1,8 @@
 // JUNDSH · DSH 桌面端 — 主进程
 'use strict'
 
-const { app, BrowserWindow, Tray, Menu, ipcMain, shell, session, nativeImage, nativeTheme, screen, webContents } = require('electron')
+const { app, BrowserWindow, Tray, Menu, ipcMain, shell, session, nativeImage, nativeTheme, screen, webContents, Notification } = require('electron')
+const { autoUpdater } = require('electron-updater')
 const path = require('node:path')
 const fs = require('node:fs')
 
@@ -129,7 +130,7 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true, // preload 仅用 contextBridge/ipcRenderer，沙箱下可用
       webviewTag: true,
       spellcheck: false,
     },
@@ -186,6 +187,15 @@ function createMainWindow() {
       e.preventDefault()
       if (/^https?:/i.test(url)) shell.openExternal(url)
     }
+  })
+
+  // webview 安全加固：拒绝任何注入的 preload / node 能力
+  mainWindow.webContents.on('will-attach-webview', (_e, webPreferences) => {
+    delete webPreferences.preload
+    webPreferences.nodeIntegration = false
+    webPreferences.contextIsolation = true
+    webPreferences.sandbox = true
+    webPreferences.spellcheck = false
   })
 
   // 下载保存到系统下载目录
@@ -251,6 +261,56 @@ function showMainWindow() {
   mainWindow.focus()
 }
 
+// ---------------- 自动更新（基于 GitHub Releases） ----------------
+function setupAutoUpdate() {
+  if (!app.isPackaged) return // 开发模式跳过（无 app-update.yml）
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[jundsh] 正在检查更新…')
+  })
+  autoUpdater.on('update-available', (info) => {
+    console.log('[jundsh] 发现新版本:', info.version)
+  })
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('[jundsh] 当前已是最新版本', info.version)
+  })
+  autoUpdater.on('download-progress', (p) => {
+    console.log(`[jundsh] 下载更新 ${Math.round(p.percent)}%`)
+  })
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[jundsh] 更新已下载:', info.version)
+    notifyUpdateReady(info.version)
+  })
+  autoUpdater.on('error', (err) => {
+    console.error('[jundsh] 自动更新失败:', err && err.message)
+  })
+
+  // 启动 8 秒后静默检查（避开启动高峰期）
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('[jundsh] 检查更新出错:', err && err.message)
+    })
+  }, 8000)
+}
+
+// 更新就绪：系统通知，点击后重启安装
+function notifyUpdateReady(version) {
+  if (!Notification.isSupported()) return
+  const n = new Notification({
+    title: 'JUNDSH 更新已就绪',
+    body: `新版本 v${version} 已下载完成，点击重启并安装`,
+    icon: buildDir('icon.png'),
+  })
+  n.on('click', () => {
+    setImmediate(() => autoUpdater.quitAndInstall())
+  })
+  n.show()
+  // 同时给外壳发 toast
+  mainWindow?.webContents.send('app:toast', `更新 v${version} 已下载，重启后生效`)
+}
+
 function createTray() {
   const icon = nativeImage.createFromPath(buildDir('tray.png'))
   tray = new Tray(icon)
@@ -260,6 +320,10 @@ function createTray() {
     { type: 'separator' },
     { label: '刷新页面', click: () => mainWindow?.webContents.send('app:command', 'reload') },
     { label: '设置…', click: () => mainWindow?.webContents.send('app:command', 'open-settings') },
+    { label: '检查更新…', click: () => {
+      if (!app.isPackaged) { mainWindow?.webContents.send('app:toast', '开发模式不检查更新'); return }
+      autoUpdater.checkForUpdates().catch((err) => console.error('[jundsh] 检查更新出错:', err && err.message))
+    } },
     { type: 'separator' },
     {
       label: '退出',
@@ -282,25 +346,33 @@ function saveWindowState() {
 }
 
 // ---------------- IPC ----------------
+// 只接受来自外壳页面（mainWindow.webContents）的调用，忽略 webview 等其他 sender
+function guard(fn) {
+  return (event, ...args) => {
+    if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return
+    return fn(event, ...args)
+  }
+}
+
 function registerIpc() {
-  ipcMain.on('app:minimize', () => mainWindow?.minimize())
-  ipcMain.handle('app:maximize-toggle', () => {
+  ipcMain.on('app:minimize', guard(() => mainWindow?.minimize()))
+  ipcMain.handle('app:maximize-toggle', guard(() => {
     if (!mainWindow) return false
     if (mainWindow.isMaximized()) mainWindow.unmaximize()
     else mainWindow.maximize()
     return mainWindow.isMaximized()
-  })
-  ipcMain.handle('app:is-maximized', () => mainWindow?.isMaximized() ?? false)
-  ipcMain.on('app:close', () => mainWindow?.close())
-  ipcMain.handle('app:get-settings', () => ({
+  }))
+  ipcMain.handle('app:is-maximized', guard(() => mainWindow?.isMaximized() ?? false))
+  ipcMain.on('app:close', guard(() => mainWindow?.close()))
+  ipcMain.handle('app:get-settings', guard(() => ({
     ...settings,
     version: app.getVersion(),
     appName: APP_NAME,
     defaultUrl: DEFAULT_URL,
     dark: nativeTheme.shouldUseDarkColors,
     loginItem: app.getLoginItemSettings().openAtLogin,
-  }))
-  ipcMain.handle('app:set-settings', (_e, patch) => {
+  })))
+  ipcMain.handle('app:set-settings', guard((_e, patch) => {
     if (patch && typeof patch === 'object') {
       if (typeof patch.targetUrl === 'string') {
         const url = patch.targetUrl.trim()
@@ -321,23 +393,23 @@ function registerIpc() {
       saveSettings()
     }
     return settings
-  })
-  ipcMain.on('app:open-external', (_e, url) => {
+  }))
+  ipcMain.on('app:open-external', guard((_e, url) => {
     if (typeof url === 'string' && /^https?:/i.test(url)) shell.openExternal(url)
-  })
-  ipcMain.on('app:gui-ready', closeSplash)
-  ipcMain.on('app:open-dev-tools', () => mainWindow?.webContents.openDevTools({ mode: 'detach' }))
+  }))
+  ipcMain.on('app:gui-ready', guard(closeSplash))
+  ipcMain.on('app:open-dev-tools', guard(() => mainWindow?.webContents.openDevTools({ mode: 'detach' })))
   // 打开 webview 内 DSH 页面的开发者工具（外壳内 F12 用 app:open-dev-tools）
-  ipcMain.on('app:open-gui-dev-tools', () => {
+  ipcMain.on('app:open-gui-dev-tools', guard(() => {
     const wc = webContents.getAllWebContents().find((w) => w.getType() === 'webview')
     if (wc) wc.openDevTools({ mode: 'detach' })
-  })
-  ipcMain.on('app:reload', () => mainWindow?.webContents.reload())
-  ipcMain.on('app:relaunch', () => {
+  }))
+  ipcMain.on('app:reload', guard(() => mainWindow?.webContents.reload()))
+  ipcMain.on('app:relaunch', guard(() => {
     quitting = true
     app.relaunch()
     app.exit(0)
-  })
+  }))
 }
 
 // ---------------- 生命周期 ----------------
@@ -357,6 +429,7 @@ if (!gotLock) {
       mainWindow?.webContents.send('theme:changed', { dark: nativeTheme.shouldUseDarkColors })
     })
     registerIpc()
+    setupAutoUpdate()
     if (!DEBUG_SHOT) createTray()
     createSplash()
     createMainWindow()

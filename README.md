@@ -3,6 +3,13 @@
 黑色鲸鱼标志的 DeepSeek Harness 桌面客户端。
 
 <p align="center">
+  <a href="https://github.com/junagent/jundsh-desktop/releases"><img src="https://img.shields.io/github/v/release/junagent/jundsh-desktop?label=Release&color=4d6bfe" alt="Release"/></a>
+  <a href="https://github.com/junagent/jundsh-desktop/blob/main/LICENSE"><img src="https://img.shields.io/github/license/junagent/jundsh-desktop?color=34d399" alt="License"/></a>
+  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-blue" alt="Platform"/>
+  <a href="https://github.com/junagent/jundsh-desktop/actions"><img src="https://img.shields.io/github/actions/workflow/status/junagent/jundsh-desktop/build.yml?label=CI" alt="CI"/></a>
+</p>
+
+<p align="center">
   <img src="assets/branding/jundsh-social-1280x640.png" alt="JUNDSH · DSH 桌面端" width="720"/>
 </p>
 
@@ -18,15 +25,26 @@
 - 🔗 **外部链接**：页面中的外部链接自动用系统浏览器打开，下载文件自动存入下载目录
 - 🪟 **窗口记忆**：记住窗口位置与最大化状态，关闭后原样恢复
 - 🔑 单实例运行
+- 🔄 **自动更新**：基于 GitHub Releases，启动后自动检查新版本，下载完成通知重启安装（托盘菜单可手动检查）
 
-## 使用
+## 开发
 
 ```bash
 npm install       # 安装依赖
 npm start         # 开发模式启动（连接 http://127.0.0.1:8080）
 npm run icons     # 重新生成鲸鱼图标（读 assets/whale.svg）
+npm run branding  # 重新生成品牌宣传图（Electron 渲染）
 npm run dist      # 打包 Windows 安装包 (NSIS + 便携版)
 ```
+
+发布新版本（自动更新依赖 GitHub Release）：
+
+```bash
+npm version patch   # 或 minor / major
+git push --follow-tags   # CI 自动构建并发布 Release（.github/workflows/build.yml）
+```
+
+> CI 使用 `GITHUB_TOKEN` 自动发布，无需手动上传安装包。
 
 打包产物位于 `release/`：
 - `JUNDSH-Setup-x.y.z.exe` — 安装版
