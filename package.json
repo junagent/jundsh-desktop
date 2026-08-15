@@ -1,7 +1,7 @@
 {
   "name": "jundsh-desktop",
   "productName": "JUNDSH",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "JUNDSH — 黑色鲸鱼标志的 DSH 桌面客户端",
   "main": "src/main.js",
   "author": "JUNDSH",
