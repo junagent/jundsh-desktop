@@ -29,7 +29,8 @@
     "publish": {
       "provider": "github",
       "owner": "junagent",
-      "repo": "jundsh-desktop"
+      "repo": "jundsh-desktop",
+      "releaseType": "release"
     },
     "files": [
       "src/**",
