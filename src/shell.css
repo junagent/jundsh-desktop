@@ -43,6 +43,8 @@
   --ds-bg-3: #26282c;
   --ds-title: rgba(16, 17, 19, 0.72);
   --ds-card: #1a1c21;
+  --ds-card-2: #16181d;
+  --ds-toast: rgba(26, 28, 33, 0.9);
   --ds-blue: #679efe;
   --ds-blue-deep: #1a3870;
   --ds-blue-mid: #2d5f9e;
@@ -67,6 +69,8 @@ body.light {
   --ds-bg-3: #eceef1;
   --ds-title: rgba(255, 255, 255, 0.78);
   --ds-card: #ffffff;
+  --ds-card-2: #f1f3f6;
+  --ds-toast: rgba(255, 255, 255, 0.94);
   --ds-text: #1a1d21;
   --ds-text-2: #5b6168;
   --ds-text-3: #8a9099;
@@ -264,7 +268,7 @@ webview {
   border-radius: 16px;
   background:
     linear-gradient(135deg, hsla(0, 0%, 100%, 0.06), hsla(0, 0%, 100%, 0) 42%),
-    linear-gradient(#1a1c21, #16181d);
+    linear-gradient(var(--ds-card), var(--ds-card-2));
   box-shadow:
     0 0 0 1px hsla(0, 0%, 100%, 0.04),
     0 0 80px rgba(103, 158, 254, 0.08),
@@ -275,7 +279,7 @@ webview {
   animation-duration: 7s;
 }
 .offline-card.border-card::after {
-  background: linear-gradient(#1a1c21, #16181d);
+  background: linear-gradient(var(--ds-card), var(--ds-card-2));
 }
 .offline-card > .card-inner {
   position: relative;
@@ -385,7 +389,7 @@ webview {
   border-radius: 16px;
   background:
     linear-gradient(135deg, hsla(0, 0%, 100%, 0.06), hsla(0, 0%, 100%, 0) 42%),
-    linear-gradient(#1a1c21, #16181d);
+    linear-gradient(var(--ds-card), var(--ds-card-2));
   box-shadow:
     0 0 0 1px hsla(0, 0%, 100%, 0.04),
     0 0 90px rgba(103, 158, 254, 0.1),
@@ -397,7 +401,7 @@ webview {
 /* 旋转渐变边框（通用 border-card） */
 .modal-card.border-card::before { animation-duration: 9s; }
 .modal-card.border-card::after {
-  background: linear-gradient(#1a1c21, #16181d);
+  background: linear-gradient(var(--ds-card), var(--ds-card-2));
 }
 .modal.open .modal-card { transform: none; }
 
@@ -509,7 +513,7 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
   z-index: 30;
   padding: 9px 18px;
   border-radius: 999px;
-  background: rgba(26, 28, 33, 0.88);
+  background: var(--ds-toast);
   border: 1px solid var(--line-strong);
   color: var(--ds-text);
   font-size: 12.5px;
