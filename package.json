@@ -20,6 +20,11 @@
       "output": "release",
       "buildResources": "build"
     },
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
+    "compression": "maximum",
     "publish": {
       "provider": "github",
       "owner": "junagent",

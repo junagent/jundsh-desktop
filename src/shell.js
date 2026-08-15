@@ -167,6 +167,12 @@ async function init() {
   $('btn-close').addEventListener('click', () => desktop.close())
   desktop.onMaximized(setMaximized)
 
+  // 标题栏双击最大化/还原（按钮区域除外）
+  $('titlebar').addEventListener('dblclick', (e) => {
+    if (e.target.closest('button')) return
+    desktop.toggleMaximize().then(setMaximized)
+  })
+
   // 导航
   $('btn-back').addEventListener('click', () => { if (gui.canGoBack()) gui.goBack() })
   $('btn-fwd').addEventListener('click', () => { if (gui.canGoForward()) gui.goForward() })

@@ -15,6 +15,7 @@ let splashWindow = null
 let tray = null
 let quitting = false
 let settings = null
+let saveTimer = null // 设置防抖写入定时器
 
 const assetsDir = (...p) => path.join(__dirname, '..', 'assets', ...p)
 const buildDir = (...p) => path.join(__dirname, '..', 'build', ...p)
@@ -59,12 +60,23 @@ function applyTheme() {
   nativeTheme.themeSource = settings?.theme ?? 'system'
 }
 
-function saveSettings() {
-  try {
-    fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2))
-  } catch (err) {
-    console.error('[jundsh] 保存设置失败:', err.message)
+// 设置写入防抖：频繁改动（缩放滑块等）合并为一次落盘；immediate=true 立即写
+function saveSettings(immediate = false) {
+  const doWrite = () => {
+    try {
+      fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2))
+    } catch (err) {
+      console.error('[jundsh] 保存设置失败:', err.message)
+    }
   }
+  if (immediate) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+    doWrite()
+    return
+  }
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(doWrite, 500)
 }
 
 // 从旧版名称目录迁移设置（小鲸鱼桌面端 / whale-desktop → JUNDSH）
@@ -198,9 +210,18 @@ function createMainWindow() {
     webPreferences.spellcheck = false
   })
 
-  // 下载保存到系统下载目录
+  // 下载保存到系统下载目录；同名文件自动追加 (1)(2)… 避免静默覆盖
   session.defaultSession.on('will-download', (_e, item) => {
-    const target = path.join(app.getPath('downloads'), item.getFilename())
+    const dir = app.getPath('downloads')
+    let name = item.getFilename().replace(/[\\/:*?"<>|]/g, '_') // 清洗非法字符
+    let target = path.join(dir, name)
+    const ext = path.extname(name)
+    const base = path.basename(name, ext)
+    let i = 1
+    while (fs.existsSync(target)) {
+      target = path.join(dir, `${base} (${i})${ext}`)
+      i++
+    }
     item.setSavePath(target)
     item.once('done', (_ev, state) => {
       if (state === 'completed' && mainWindow && !mainWindow.isDestroyed()) {
@@ -342,7 +363,7 @@ function saveWindowState() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   settings.maximized = mainWindow.isMaximized()
   if (!settings.maximized) settings.bounds = mainWindow.getBounds()
-  saveSettings()
+  saveSettings(true) // 退出路径立即落盘
 }
 
 // ---------------- IPC ----------------
@@ -437,5 +458,18 @@ if (!gotLock) {
 
   app.on('window-all-closed', () => {
     if (quitting || process.platform !== 'darwin') app.quit()
+  })
+
+  // 退出前冲刷未落盘的设置（防抖可能还在等待）
+  app.on('before-quit', () => {
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+      try {
+        fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2))
+      } catch (err) {
+        console.error('[jundsh] 退出时保存设置失败:', err.message)
+      }
+    }
   })
 }

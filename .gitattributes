@@ -1,0 +1,14 @@
+# 换行符规范化：源码统一 LF，二进制不转换
+* text=auto eol=lf
+
+# 二进制文件
+*.png binary
+*.ico binary
+*.exe binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+
+# 锁文件保留原始换行
+package-lock.json text eol=lf
