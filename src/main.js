@@ -19,6 +19,7 @@ const IS_PORTABLE = process.env.PORTABLE_EXECUTABLE_DIR !== undefined
 
 let mainWindow = null
 let splashWindow = null
+let floatWindow = null // 桌面悬浮鲸鱼
 let tray = null
 let quitting = false
 let settings = null
@@ -53,12 +54,25 @@ function loadSettings() {
       ? settings.dsh.sourceRepo
       : path.join(os.homedir(), 'deepseek-harness'),
   }
+  // 桌面悬浮鲸鱼（默认开启）
+  settings.floatEnabled = settings.floatEnabled !== false
+  const fb = settings.floatBounds
+  settings.floatBounds = (fb && typeof fb === 'object' && Number.isInteger(fb.x) && Number.isInteger(fb.y))
+    ? { x: fb.x, y: fb.y }
+    : defaultFloatPos()
   return settings
 }
 
-// DSH 服务管理器：把最新状态推给外壳
+// 悬浮鲸鱼默认位置：主显示器右侧，距右缘 24、距底缘 96（避开任务栏）
+function defaultFloatPos() {
+  const { workArea } = screen.getPrimaryDisplay()
+  return { x: workArea.x + workArea.width - 24 - 128, y: workArea.y + workArea.height - 96 - 128 }
+}
+
+// DSH 服务管理器：把最新状态推给外壳与悬浮窗
 function pushDshStatus(state) {
   mainWindow?.webContents.send('dsh:status', state)
+  if (floatWindow && !floatWindow.isDestroyed()) floatWindow.webContents.send('dsh:status', state)
 }
 function requireDshSvc() {
   if (dshSvc) return dshSvc
@@ -360,6 +374,82 @@ function showMainWindow() {
   mainWindow.focus()
 }
 
+// ---------------- 桌面悬浮鲸鱼 ----------------
+function createFloatWindow() {
+  if (!settings.floatEnabled) return
+  const b = settings.floatBounds
+  const SIZE = 128
+  floatWindow = new BrowserWindow({
+    x: b.x,
+    y: b.y,
+    width: SIZE,
+    height: SIZE,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: true,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: path.join(__dirname, 'float-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      spellcheck: false,
+    },
+  })
+  floatWindow.setAlwaysOnTop(true, 'floating')
+  floatWindow.loadFile(path.join(__dirname, 'float.html'))
+  if (process.env.DSH_DESKTOP_SHOT === 'float') {
+    console.log('[jundsh:debug] FLOAT mode: window created', !!floatWindow)
+    setTimeout(async () => {
+      try {
+        const dir = path.join(app.getPath('userData'), 'screenshots')
+        fs.mkdirSync(dir, { recursive: true })
+        await new Promise((r) => setTimeout(r, 600))
+        console.log('[jundsh:debug] FLOAT visible?', !!(floatWindow && !floatWindow.isDestroyed() && floatWindow.isVisible()))
+        if (floatWindow && !floatWindow.isDestroyed() && floatWindow.isVisible()) {
+          const img = await floatWindow.webContents.capturePage()
+          fs.writeFileSync(path.join(dir, 'float.png'), img.toPNG())
+          const dom = await floatWindow.webContents.executeJavaScript(`(() => {
+            const whale = document.getElementById('whale');
+            const shell = document.getElementById('whale-shell');
+            return {
+              shellDrag: shell ? getComputedStyle(shell).webkitAppRegion || 'none' : null,
+              whaleSrc: whale ? whale.getAttribute('src') : null,
+              menuItems: document.querySelectorAll('#menu-inner .mi').length,
+              floaty: whale ? getComputedStyle(whale).animationName : null,
+            };
+          })()`)
+          console.log('[jundsh:debug] FLOAT DOM:', JSON.stringify(dom))
+        } else {
+          console.log('[jundsh:debug] FLOAT DOM: not visible/created')
+        }
+      } catch (err) {
+        console.error('[jundsh] 悬浮窗截图失败:', err && err.message)
+      }
+      console.log('[jundsh:debug] FLOAT exit')
+      setTimeout(() => app.exit(0), 300)
+    }, 1200)
+    return floatWindow
+  }
+  floatWindow.on('moved', () => {
+    if (!floatWindow || floatWindow.isDestroyed()) return
+    const [x, y] = floatWindow.getPosition()
+    settings.floatBounds = { x, y }
+    saveSettings()
+  })
+  floatWindow.on('closed', () => { floatWindow = null })
+  return floatWindow
+}
+
+function showFloatWindow() {
+  if (!floatWindow || floatWindow.isDestroyed()) createFloatWindow()
+  if (floatWindow && !floatWindow.isDestroyed() && !floatWindow.isVisible()) floatWindow.show()
+}
+
 // ---------------- 自动更新（基于 GitHub Releases） ----------------
 function setupAutoUpdate() {
   if (!app.isPackaged) return // 开发模式跳过（无 app-update.yml）
@@ -508,6 +598,17 @@ function registerIpc() {
         settings.dsh = next
         if (dshSvc) dshSvc.applyConfig()
       }
+      // 桌面悬浮鲸鱼开关
+      if (typeof patch.floatEnabled === 'boolean') {
+        settings.floatEnabled = patch.floatEnabled
+        if (settings.floatEnabled) {
+          if (!floatWindow || floatWindow.isDestroyed()) createFloatWindow()
+          else if (!floatWindow.isVisible()) floatWindow.show()
+        } else if (floatWindow && !floatWindow.isDestroyed()) {
+          floatWindow.close()
+          floatWindow = null
+        }
+      }
       saveSettings()
     }
     return settings
@@ -575,6 +676,20 @@ function registerIpc() {
     return { ok: true }
   }))
   ipcMain.handle('term:close', guard(() => { killTermChild(); return { ok: true } }))
+  // ---- 桌面悬浮鲸鱼（独立 sender，不用 shell 的 guard） ----
+  ipcMain.handle('float:get-status', () => requireDshSvc().getState())
+  ipcMain.on('float:toggle-main', () => showMainWindow())
+  ipcMain.on('float:open-settings', () => {
+    showMainWindow()
+    setTimeout(() => mainWindow?.webContents.send('app:command', 'open-settings'), 120)
+  })
+  ipcMain.on('float:quit', () => {
+    quitting = true
+    app.quit()
+  })
+  ipcMain.on('float:hide-self', () => {
+    floatWindow?.hide()
+  })
 }
 
 function killTermChild() {
@@ -614,6 +729,8 @@ if (!gotLock) {
     if (!DEBUG_SHOT) createTray()
     createSplash()
     createMainWindow()
+    // 桌面悬浮鲸鱼（调试截图模式下仅 float 模式创建以便验证；其余跳过避免干扰截图）
+    if (!DEBUG_SHOT || process.env.DSH_DESKTOP_SHOT === 'float') createFloatWindow()
   })
 
   app.on('window-all-closed', () => {

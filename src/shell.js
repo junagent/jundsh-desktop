@@ -139,6 +139,7 @@ async function openSettings() {
   updateZoomFill()
   $('input-tray').checked = settings.minimizeToTray
   $('input-login').checked = !!settings.loginItem
+  $('input-float').checked = settings.floatEnabled !== false
   $('input-dsh-port').value = settings.dsh?.port ?? 8080
   $('input-dsh-repo').value = settings.dsh?.sourceRepo ?? ''
   setDshMode(settings.dsh?.mode ?? 'external')
@@ -219,6 +220,7 @@ async function saveSettings() {
     targetUrl: url,
     minimizeToTray: $('input-tray').checked,
     loginItem: $('input-login').checked,
+    floatEnabled: $('input-float').checked,
     zoomFactor: Number($('input-zoom').value) / 100,
     theme: activeTheme,
   }

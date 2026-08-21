@@ -54,6 +54,18 @@ write('assets/whale-white.svg', `<svg xmlns="http://www.w3.org/2000/svg" width="
 </svg>
 `)
 
+// ---------- 官方黑色鲸鱼浮窗标志（透明底，供桌面悬浮球；浅色桌面 === 官方黑） ----------
+function floatSvg(size) {
+  const { scale, cx, cy } = fit(size, size * 0.04)
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <g transform="translate(${cx} ${cy}) scale(${scale})">
+    <path d="${d}" fill="#0B1220"/>
+  </g>
+</svg>
+`
+}
+write('assets/float-whale-black.svg', floatSvg(256))
+
 // ---------- 应用图标：白底 + 官方黑色鲸鱼 ----------
 function appIconSvg(size) {
   const { scale, cx, cy } = fit(size, size * 0.125)
