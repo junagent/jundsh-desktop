@@ -287,6 +287,10 @@ const termStatus = $('term-status')
 let termOpen = false
 const TERM_MAX = 20000 // 输出缓冲上限（字符）
 
+// 命令历史（会话级）：Enter 入栈、↑/↓ 遍历、空输入不重复入栈
+const termHistory = []
+let termHistIdx = -1 // -1 = 当前正在输入的新命令
+
 function appendTerm(d) {
   let txt = String(d)
   termOut.textContent += txt
@@ -295,6 +299,29 @@ function appendTerm(d) {
     termOut.textContent = termOut.textContent.slice(-TERM_MAX)
   }
   termOut.scrollTop = termOut.scrollHeight
+}
+
+function termSubmit() {
+  const line = termIn.value
+  if (!line.trim()) return // 空命令不执行也不入历史
+  termIn.value = ''
+  termHistory.push(line)
+  termHistIdx = termHistory.length // 回到"新命令"位置
+  // 本地回显
+  appendTerm('PS> ' + line + '\n')
+  desktop.termInput(line).catch(() => {})
+}
+
+// 历史导航：dir = -1 上一条，1 = 下一条
+function termNavHistory(dir, currentVal = '') {
+  if (!termHistory.length) return
+  let idx = termHistIdx
+  if (dir < 0) idx = Math.max(0, (idx < 0 ? termHistory.length : idx) - 1)
+  else idx = Math.min(termHistory.length, (idx < 0 ? termHistory.length : idx) + 1)
+  termHistIdx = idx
+  if (idx >= termHistory.length) termIn.value = currentVal // 到末尾恢复正在输入的内容
+  else termIn.value = termHistory[idx]
+  termIn.setSelectionRange(termIn.value.length, termIn.value.length)
 }
 
 async function toggleTerm(forceOpen) {
@@ -314,7 +341,8 @@ async function toggleTerm(forceOpen) {
   termStatus.textContent = '连接中…'
   try {
     const r = await desktop.termOpen()
-    termStatus.textContent = r.ok ? `在线 (${r.cwd})` : '失败'
+    termStatus.textContent = r.ok ? `在线 · ${r.cwd}` : '失败'
+    if (r.ok && r.cwd) termStatus.title = r.cwd
   } catch {
     termStatus.textContent = '启动失败'
   }
@@ -380,13 +408,12 @@ async function init() {
   $('btn-term-close').addEventListener('click', () => toggleTerm(false))
   $('btn-term-clear').addEventListener('click', () => { termOut.textContent = '' })
   termIn.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const line = termIn.value
-      termIn.value = ''
-      // 本地回显
-      appendTerm('PS> ' + line + '\n')
-      desktop.termInput(line).catch(() => {})
-    }
+    if (e.key === 'Enter') { e.preventDefault(); termSubmit(); return }
+    if (e.key === 'ArrowUp') { e.preventDefault(); termNavHistory(-1, termIn.value); return }
+    if (e.key === 'ArrowDown') { e.preventDefault(); termNavHistory(1, termIn.value); return }
+    if (e.ctrlKey && e.key === 'l') { e.preventDefault(); termOut.textContent = ''; return }
+    // 任意编辑时重置历史位置为"新命令"
+    termHistIdx = -1
   })
   desktop.onTermData(appendTerm)
   desktop.onTermExit((code) => {

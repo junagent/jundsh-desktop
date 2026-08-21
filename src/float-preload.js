@@ -18,4 +18,10 @@ contextBridge.exposeInMainWorld('float', {
   getWorkArea: () => ipcRenderer.invoke('float:get-workarea'),
   getTheme: () => ipcRenderer.invoke('float:get-theme'),
   onTheme: (cb) => ipcRenderer.on('float:theme', (_e, dark) => cb(dark)),
+  // 吸附状态记忆
+  setSnap: (edge) => ipcRenderer.invoke('float:set-snap', edge),
+  getSnap: () => ipcRenderer.invoke('float:get-snap'),
+  // 外观（主题明暗 + 皮肤）
+  getPersona: () => ipcRenderer.invoke('float:get-persona'),
+  onPersona: (cb) => ipcRenderer.on('float:persona', (_e, p) => cb(p)),
 })

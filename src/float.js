@@ -140,6 +140,8 @@ function maybeSnap(x, y) {
 function setSnapClass(edge) {
   snapEdge = edge
   document.documentElement.classList.toggle('snapped', !!edge)
+  // 上报吸附状态（持久化记忆，重启后恢复）
+  float.setSnap(edge).catch(() => {})
   if (edge) {
     shell.title = '已贴边吸附，悬停浮出；双击返回主界面'
   }
@@ -214,16 +216,42 @@ window.addEventListener('contextmenu', (e) => {
 
 window.addEventListener('blur', () => setMenu(false))
 
-// ---------- 主题（黑/白鲸） ----------
+// ---------- 主题（黑/白鲸）与皮肤（菜单 accent 协调） ----------
 function applyTheme(dark) {
   whale.src = dark ? '../assets/whale-white.svg' : '../assets/float-whale-black.svg'
 }
+function applyPersona(p) {
+  if (!p) return
+  const html = document.documentElement
+  html.classList.remove('skin-violet', 'skin-emerald', 'skin-amber')
+  if (p.skin && p.skin !== 'default') html.classList.add('skin-' + p.skin)
+  if (typeof p.dark === 'boolean') applyTheme(p.dark)
+}
 float.getTheme().then(applyTheme).catch(() => {})
 float.onTheme(applyTheme)
+float.getPersona().then(applyPersona).catch(() => {})
+float.onPersona(applyPersona)
 
 // ---------- 初始化 ----------
 float.getWorkArea().then((wa) => {
   if (wa && wa.width) workArea = wa
+  // 恢复上次吸附状态（需先有 workArea，再归位到对应屏幕边）
+  if (wa && wa.width) {
+    float.getSnap().then((edge) => {
+      if (!edge) return
+      float.getPos().then((p) => {
+        if (!p) return
+        const { x: wx, y: wy, width: ww, height: wh } = workArea
+        let nx = p.x, ny = p.y
+        if (edge === 'left') nx = wx
+        if (edge === 'right') nx = wx + ww - SIZE
+        if (edge === 'top') ny = wy
+        if (edge === 'bottom') ny = wy + wh - SIZE
+        float.setPos(nx, ny).catch(() => {})
+        setSnapClass(edge)
+      }).catch(() => {})
+    }).catch(() => {})
+  }
 }).catch(() => {})
 float.onStatus(applyStatus)
 float.getStatus().then(applyStatus).catch(() => {})

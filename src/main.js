@@ -60,6 +60,10 @@ function loadSettings() {
   settings.floatBounds = (fb && typeof fb === 'object' && Number.isInteger(fb.x) && Number.isInteger(fb.y))
     ? { x: fb.x, y: fb.y }
     : defaultFloatPos()
+  // 吸附状态记忆（重启后恢复上次吸附边）
+  settings.floatSnapEdge = ['left', 'right', 'top', 'bottom'].includes(settings.floatSnapEdge)
+    ? settings.floatSnapEdge
+    : null
   return settings
 }
 
@@ -334,15 +338,21 @@ function createMainWindow() {
             const shown = q('#term') && !q('#term').classList.contains('hidden');
             const status = q('#term-status')?.textContent;
             const input = q('#term-in');
+            let histRes = null;
             if (input) {
               input.value = 'Write-Output JUNDSH_TERM_E2E';
               input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+              // 命令历史：Enter 后按 ↑ 应恢复上一条命令
+              await new Promise((r) => setTimeout(r, 120));
+              input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+              await new Promise((r) => setTimeout(r, 120));
+              histRes = input.value;
             }
             await new Promise((r) => setTimeout(r, 1500));
             const outTail = (q('#term-out')?.textContent || '').slice(-300);
             const finalStatus = q('#term-status')?.textContent;
             q('#btn-term-close').click();
-            termSummary = { before, mid, shown, status, finalStatus, echoed: outTail.includes('JUNDSH_TERM_E2E') };
+            termSummary = { before, mid, shown, status, finalStatus, echoed: outTail.includes('JUNDSH_TERM_E2E'), hist: histRes };
             // 皮肤冒烟：切到极光紫，验证 body.skin-violet 生效，然后还原默认
             const skinBtn = q('#seg-skin .seg-btn[data-skin="violet"]');
             skinBtn?.click();
@@ -438,6 +448,12 @@ function createFloatWindow() {
               floaty: whaleEl ? getComputedStyle(whaleEl).animationName : null,
               snapped: document.documentElement.classList.contains('snapped'),
             };
+            let snapMem = null;
+            try { snapMem = await window.float.getSnap(); } catch (e) { snapMem = 'err:' + e; }
+            let wa2 = null;
+            try { wa2 = await window.float.getWorkArea(); } catch (e) { wa2 = 'err:' + e; }
+            base.snapMem = snapMem;
+            base.workArea = wa2 && wa2.width ? wa2.width + 'x' + wa2.height : wa2;
             // 主题：切到系统 dark 场景无法合成，这里验证内置 applyTheme 分支可用
             let theme = null;
             try { theme = await window.float.getTheme(); } catch (e) { theme = 'err:' + e; }
@@ -482,7 +498,14 @@ function showFloatWindow() {
 
 // ---------------- 自动更新（基于 GitHub Releases） ----------------
 function setupAutoUpdate() {
-  if (!app.isPackaged) return // 开发模式跳过（无 app-update.yml）
+  if (!app.isPackaged) {
+    // 开发模式：不检查更新，但给出可察觉提示（避免"为什么没有更新"困惑）
+    console.log('[jundsh] 开发模式：不检查自动更新')
+    setTimeout(() => {
+      mainWindow?.webContents.send('app:toast', '开发模式不检查更新')
+    }, 4000)
+    return
+  }
   if (IS_PORTABLE) {
     console.log('[jundsh] 便携版不支持自动更新，请使用安装版')
     return
@@ -637,6 +660,9 @@ function registerIpc() {
       }
       if (['default', 'violet', 'emerald', 'amber'].includes(patch.skin)) {
         settings.skin = patch.skin
+        if (floatWindow && !floatWindow.isDestroyed()) {
+          floatWindow.webContents.send('float:persona', { dark: nativeTheme.shouldUseDarkColors, skin: settings.skin })
+        }
       }
       if (typeof patch.loginItem === 'boolean') {
         app.setLoginItemSettings({ openAtLogin: patch.loginItem })
@@ -780,6 +806,18 @@ function registerIpc() {
     return { x: workArea.x, y: workArea.y, width: workArea.width, height: workArea.height }
   }))
   ipcMain.handle('float:get-theme', fguard(() => nativeTheme.shouldUseDarkColors))
+  // 外观信息：主题明暗 + 皮肤名（供悬浮窗菜单跟随 skin accent 协调）
+  ipcMain.handle('float:get-persona', fguard(() => ({
+    dark: nativeTheme.shouldUseDarkColors,
+    skin: settings.skin || 'default',
+  })))
+  // 皮肤变化时也通知悬浮窗
+  ipcMain.handle('float:set-snap', fguard((_e, edge) => {
+    settings.floatSnapEdge = ['left', 'right', 'top', 'bottom'].includes(edge) ? edge : null
+    saveSettings()
+    return { ok: true }
+  }))
+  ipcMain.handle('float:get-snap', fguard(() => settings.floatSnapEdge || null))
 }
 
 // 主题变化也通知悬浮窗（黑/白鲸鱼切换）
