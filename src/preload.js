@@ -25,5 +25,7 @@ contextBridge.exposeInMainWorld('desktop', {
   startDsh: () => ipcRenderer.invoke('dsh:start'),
   stopDsh: () => ipcRenderer.invoke('dsh:stop'),
   restartDsh: () => ipcRenderer.invoke('dsh:restart'),
+  // ---- 环境诊断 ----
+  getDiag: () => ipcRenderer.invoke('diag:collect'),
   onDshStatus: (cb) => ipcRenderer.on('dsh:status', (_e, state) => cb(state)),
 })

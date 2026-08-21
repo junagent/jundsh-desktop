@@ -174,6 +174,30 @@ function closeSettings() {
   $('settings').classList.remove('open')
   $('input-url').classList.remove('invalid')
 }
+
+// ---------------- 环境诊断 ----------------
+async function runDiag() {
+  const box = $('diag-box')
+  const pre = $('diag-text')
+  const copyBtn = $('btn-diag-copy')
+  box.classList.remove('hidden')
+  pre.textContent = '正在采集…'
+  copyBtn.disabled = true
+  try {
+    const r = await desktop.getDiag()
+    pre.textContent = r.report
+    $('diag-hint').textContent = r.issues.length
+      ? `发现 ${r.issues.length} 个问题：${r.issues.join('；')}`
+      : '未发现问题，环境正常'
+    copyBtn.disabled = false
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(r.report).then(() => toast('诊断报告已复制'))
+    }
+  } catch {
+    pre.textContent = '诊断失败'
+    $('diag-hint').textContent = '无法采集诊断信息'
+  }
+}
 function updateZoomFill() {
   const el = $('input-zoom')
   const v = Number(el.value)
@@ -276,6 +300,9 @@ async function init() {
     if (r && r.state) renderDshState(r.state)
     toast('已停止托管服务')
   })
+
+  // 环境诊断
+  $('btn-diag').addEventListener('click', runDiag)
 
   // 标题栏按钮
   $('btn-min').addEventListener('click', () => desktop.minimize())

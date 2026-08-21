@@ -159,6 +159,17 @@
           <button class="btn ghost" id="btn-dsh-restart">重启</button>
           <button class="btn ghost" id="btn-dsh-stop">停止</button>
         </div>
+        <div class="field">
+          <label>环境诊断</label>
+          <div class="row">
+            <button class="btn ghost" id="btn-diag">生成诊断报告</button>
+            <button class="btn ghost" id="btn-diag-copy" disabled>复制</button>
+          </div>
+          <div class="diag-box hidden" id="diag-box">
+            <pre id="diag-text"></pre>
+          </div>
+          <p class="field-hint" id="diag-hint">检查 DSH 路径/源码/端口等环境项，帮助定位连接问题</p>
+        </div>
       </div>
       <div class="modal-foot">
         <span class="foot-info">v<span id="app-version">1.0.0</span> · JUNDSH</span>

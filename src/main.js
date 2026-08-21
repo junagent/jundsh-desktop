@@ -8,6 +8,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const { DshService } = require('./dsh-svc')
+const diag = require('./diag')
 
 const APP_NAME = 'JUNDSH'
 const DEFAULT_URL = 'http://127.0.0.1:8080'
@@ -297,9 +298,14 @@ function createMainWindow() {
         }
         const img = await mainWindow.webContents.capturePage()
         fs.writeFileSync(path.join(dir, 'shell.png'), img.toPNG())
-        const dom = await mainWindow.webContents.executeJavaScript(`(() => {
+        const dom = await mainWindow.webContents.executeJavaScript(`(async () => {
           const q = (s) => document.querySelector(s);
           const imgs = [...document.querySelectorAll('img')].map((im) => ({ cls: im.className, w: im.naturalWidth, src: im.getAttribute('src') }));
+          let diagSummary = null;
+          try {
+            const dr = await window.desktop.getDiag();
+            diagSummary = { issues: dr.issues, head: dr.report.split('\\n').slice(0, 4) };
+          } catch (e) { diagSummary = { err: String(e) }; }
           return {
             veilHidden: q('#veil')?.classList.contains('hidden'),
             offlineHidden: q('#offline')?.classList.contains('hidden'),
@@ -311,6 +317,7 @@ function createMainWindow() {
             bodyLight: document.body.classList.contains('light'),
             guiSrc: q('#gui')?.getAttribute('src'),
             imgs,
+            diagSummary,
           };
         })()`)
         console.log('[jundsh:debug] DOM:', JSON.stringify(dom))
@@ -513,6 +520,13 @@ function registerIpc() {
     svc.applyConfig()
     return await svc.restart({ force: true })
   }))
+  // ---- 环境诊断 ----
+  ipcMain.handle('diag:collect', guard(() => diag.collect(settings, {
+    appVersion: app.getVersion(),
+    appName: APP_NAME,
+    targetUrl: settings.targetUrl,
+    isPackaged: app.isPackaged,
+  })))
 }
 
 // ---------------- 生命周期 ----------------

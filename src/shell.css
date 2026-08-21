@@ -425,7 +425,7 @@ webview {
 .spacer { flex: 1; }
 .grow { flex: 1; }
 
-.modal-body { padding: 16px 18px 6px; display: flex; flex-direction: column; gap: 18px; }
+.modal-body { padding: 16px 18px 6px; display: flex; flex-direction: column; gap: 18px; max-height: calc(100vh - 180px); overflow-y: auto; }
 .field { display: flex; flex-direction: column; gap: 7px; }
 .field.row { flex-direction: row; align-items: center; gap: 14px; }
 .field > label { font-size: 12.5px; font-weight: 600; color: var(--ds-text-2); display: flex; align-items: center; gap: 8px; }
@@ -544,6 +544,28 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
 }
 .svc-dot.wait { animation: pulse 1.1s ease-in-out infinite; }
 .svc-line { flex: 1; font-size: 12.5px; color: var(--ds-text-2); }
+
+/* 设置面板内横向按钮行 */
+.field > .row { display: flex; align-items: center; gap: 8px; }
+
+/* 环境诊断输出块 */
+.diag-box {
+  max-height: 190px;
+  overflow: auto;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: hsla(0, 0%, 0%, 0.28);
+}
+.diag-box pre {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--ds-text-2);
+  white-space: pre;
+  user-select: text;
+}
 
 /* Toast */
 .toast {
