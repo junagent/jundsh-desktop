@@ -155,6 +155,16 @@ function setDshMode(scope, mode) {
   const managed = mode !== 'external'
   $('dsh-port-field').classList.toggle('hidden', !managed)
   $('dsh-repo-field').classList.toggle('hidden', mode !== 'source')
+  // 托管模式下服务地址由端口自动推导
+  const urlInput = $('input-url')
+  if (managed) {
+    urlInput.value = `http://127.0.0.1:${parseInt($('input-dsh-port').value, 10) || 8080}`
+    urlInput.setAttribute('readonly', 'true')
+    urlInput.style.opacity = '0.6'
+  } else {
+    urlInput.removeAttribute('readonly')
+    urlInput.style.opacity = ''
+  }
   $('dsh-mode-hint').textContent =
     mode === 'external' ? '外部模式：请先运行 start-dsh-web.ps1 启动服务' :
     mode === 'profile' ? '托管·Profile：由客户端拉起已安装的 DSH Profile' :
@@ -190,20 +200,27 @@ async function saveSettings() {
   }
   // DSH 服务配置
   const activeDshMode = document.querySelector('#seg-dsh-mode .seg-btn.active')?.dataset.mode ?? 'external'
+  const nextPort = Math.min(65535, Math.max(1, parseInt($('input-dsh-port').value, 10) || 8080))
   next.dsh = {
     mode: activeDshMode,
-    port: Math.min(65535, Math.max(1, parseInt($('input-dsh-port').value, 10) || 8080)),
+    port: nextPort,
     sourceRepo: $('input-dsh-repo').value.trim(),
+  }
+  // 托管模式下 targetUrl 自动跟随端口，保证 webview 与服务一致
+  let effectiveUrl = url
+  if (activeDshMode !== 'external') {
+    effectiveUrl = `http://127.0.0.1:${nextPort}`
+    next.targetUrl = effectiveUrl
   }
   settings = await desktop.setSettings(next)
   closeSettings()
   const zoom = Math.min(2, Math.max(0.5, Number($('input-zoom').value) / 100))
   applyZoom(zoom)
-  if (url !== gui.getURL()) {
+  if (effectiveUrl !== gui.getURL()) {
     loadedOnce = false
     setState('connecting')
-    gui.src = url
-    offlineUrl.textContent = url
+    gui.src = effectiveUrl
+    offlineUrl.textContent = effectiveUrl
   } else {
     setState('online')
   }
@@ -303,6 +320,15 @@ async function init() {
   $('input-zoom').addEventListener('change', () => {
     settings.zoomFactor = Number($('input-zoom').value) / 100
     desktop.setSettings({ zoomFactor: settings.zoomFactor })
+  })
+
+  // 托管模式下端口变化实时同步服务地址
+  $('input-dsh-port').addEventListener('input', () => {
+    const mode = document.querySelector('#seg-dsh-mode .seg-btn.active')?.dataset.mode ?? 'external'
+    if (mode !== 'external') {
+      const port = Math.min(65535, Math.max(1, parseInt($('input-dsh-port').value, 10) || 8080))
+      $('input-url').value = `http://127.0.0.1:${port}`
+    }
   })
 
   // 离线重试
