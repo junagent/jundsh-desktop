@@ -94,6 +94,9 @@ git push --follow-tags   # CI 自动构建并发布 Release（.github/workflows/
 | --- | --- |
 | `Ctrl` + `=` / `-` | 缩放界面 |
 | `Ctrl` + `0` | 恢复 100% 缩放 |
+| `` Ctrl `` + `` ` `` | 打开/关闭终端抽屉 |
+| `Ctrl` + `L`（终端内） | 清空终端输出 |
+| `↑` / `↓`（终端内） | 命令历史 |
 | `F12` / `Ctrl+Shift+I` | 开发者工具 |
 | `Esc` | 关闭设置弹窗 |
 

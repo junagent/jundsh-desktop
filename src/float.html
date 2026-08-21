@@ -66,6 +66,8 @@
     display: flex; flex-direction: column;
     gap: 2px;
   }
+  /* 吸附到右边缘时菜单向左侧展开，避免溢出屏幕 */
+  html[data-snap="right"] #menu-inner { right: auto; left: 0; }
   #menu-inner.hidden { display: none; }
   .mi {
     display: flex; align-items: center; gap: 10px;

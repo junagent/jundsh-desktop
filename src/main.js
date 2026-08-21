@@ -57,13 +57,15 @@ function loadSettings() {
   // 桌面悬浮鲸鱼（默认开启）
   settings.floatEnabled = settings.floatEnabled !== false
   const fb = settings.floatBounds
-  settings.floatBounds = (fb && typeof fb === 'object' && Number.isInteger(fb.x) && Number.isInteger(fb.y))
+  const hasSavedFloat = !!(fb && typeof fb === 'object' && Number.isInteger(fb.x) && Number.isInteger(fb.y))
+  settings.floatBounds = hasSavedFloat
     ? { x: fb.x, y: fb.y }
     : defaultFloatPos()
   // 吸附状态记忆（重启后恢复上次吸附边）
+  // 首次启动（无历史位置）默认吸附右边缘缩条，让鲸鱼以精致姿态登场
   settings.floatSnapEdge = ['left', 'right', 'top', 'bottom'].includes(settings.floatSnapEdge)
     ? settings.floatSnapEdge
-    : null
+    : (hasSavedFloat ? null : 'right')
   return settings
 }
 

@@ -7,7 +7,7 @@
 
 const SIZE = 128
 const SNAP = 40 // 吸附判定距离(px)
-const STUB = 36 // 吸附时露出的宽度(px)
+const STUB = 34 // 吸附时露出的宽度(px)，与 float.html 中 html.snapped #whale 尺寸一致
 const MOVE_THRESHOLD = 6 // 判定为拖动的最小位移
 
 const shell = document.getElementById('whale-shell')
@@ -140,6 +140,9 @@ function maybeSnap(x, y) {
 function setSnapClass(edge) {
   snapEdge = edge
   document.documentElement.classList.toggle('snapped', !!edge)
+  // 记录吸附边供 CSS 定向（如右缘吸附时菜单向左展开）
+  if (edge) document.documentElement.setAttribute('data-snap', edge)
+  else document.documentElement.removeAttribute('data-snap')
   // 上报吸附状态（持久化记忆，重启后恢复）
   float.setSnap(edge).catch(() => {})
   if (edge) {

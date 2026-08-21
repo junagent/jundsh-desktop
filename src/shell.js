@@ -162,9 +162,11 @@ async function openSettings() {
   renderDshState(lastDsh)
   desktop.getDshStatus().then(renderDshState).catch(() => {})
   $('settings').classList.add('open')
-  setTimeout(() => $('input-url').focus(), 120)
+  // 焦点：托管模式下地址框只读，聚焦缩放到可编辑控件
+  const firstEditable = settings.dsh?.mode === 'external' ? $('input-url') : $('input-dsh-port')
+  setTimeout(() => firstEditable?.focus(), 120)
 }
-function setDshMode(scope, mode) {
+function setDshMode(mode) {
   document.querySelectorAll('#seg-dsh-mode .seg-btn').forEach((b) => {
     b.classList.toggle('active', b.dataset.mode === mode)
   })

@@ -353,7 +353,11 @@ webview {
 .offline-url {
   font-size: 12px; color: var(--ds-text-3);
   font-family: Consolas, "Cascadia Mono", monospace;
-  margin-bottom: 14px;
+  margin: 0 auto 14px;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   user-select: text;
 }
 .offline-hint { font-size: 12px; color: var(--ds-blue); margin-bottom: 18px; min-height: 16px; }
