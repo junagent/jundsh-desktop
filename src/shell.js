@@ -271,14 +271,15 @@ async function saveSettings() {
   }
   // 托管模式下保存即尝试拉起服务
   if (activeDshMode !== 'external') {
-    toast('正在启动 DSH 服务…')
+    toast('设置已保存，正在启动 DSH 服务…')
     desktop.startDsh().then((r) => {
       renderDshState(r?.state)
       if (r?.ok) toast('DSH 服务已就绪')
-      else toast('服务启动未完成，请查看状态')
+      else toast('服务启动未完成，请查看服务状态')
     }).catch(() => toast('服务启动失败'))
+  } else {
+    toast('设置已保存')
   }
-  toast('设置已保存')
 }
 
 // ---------------- 内置终端 ----------------

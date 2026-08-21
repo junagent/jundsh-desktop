@@ -98,6 +98,15 @@ function fmt(sec) {
 }
 
 // ---------- 吸附与位置 ----------
+let workAreaDirty = false // 拖动中需要刷新 workArea 的标记（跨屏场景）
+let workAreaTimer = null
+// 按窗口当前（或给定锚点）位置刷新所在显示器 workArea，保证跨屏吸附正确
+function refreshWorkArea(anchor) {
+  float.getWorkArea(anchor ? { x: anchor.x, y: anchor.y } : undefined).then((wa) => {
+    if (wa && wa.width) workArea = wa
+  }).catch(() => {})
+}
+
 function clampScreen(x, y) {
   const { x: wx, y: wy, width: ww, height: wh } = workArea
   const c = (v, min, max) => Math.max(min, Math.min(max, v))
@@ -176,6 +185,8 @@ function scheduleMove(x, y) {
 shell.addEventListener('mousedown', (e) => {
   if (e.button !== 0) return
   setMenu(false)
+  // 拖动前先按当前位置刷新吸附基准（多显示器场景）
+  refreshWorkArea({ x: e.screenX, y: e.screenY })
   float.getPos().then((p) => {
     if (!p) return
     drag = { startX: e.screenX, startY: e.screenY, winX: p.x, winY: p.y, moved: false }
@@ -191,6 +202,13 @@ window.addEventListener('mousemove', (e) => {
     setSnapClass(null) // 拖动中解除吸附
   }
   if (drag.moved) scheduleMove(drag.winX + dx, drag.winY + dy)
+  // 跨屏拖动：拖动中每个 600ms 按指针位置刷新一次吸附基准（节流，避免高频 IPC）
+  if (drag.moved && !workAreaTimer) {
+    workAreaTimer = setTimeout(() => {
+      workAreaTimer = null
+      refreshWorkArea({ x: e.screenX, y: e.screenY })
+    }, 600)
+  }
 })
 window.addEventListener('mouseup', (e) => {
   if (!drag) return
@@ -200,9 +218,17 @@ window.addEventListener('mouseup', (e) => {
   const endX = drag.winX + dx
   const endY = drag.winY + dy
   drag = null
+  if (workAreaTimer) { clearTimeout(workAreaTimer); workAreaTimer = null }
   shell.classList.remove('dragging')
-  if (moved) settle(endX, endY)
-  else setMenu(true) // 单击打开菜单
+  if (moved) {
+    // 落位前最后一次按终点刷新基准，随后吸附判定基于当前屏幕
+    refreshWorkArea({ x: endX, y: endY })
+    // 等一次刷新结果再 settle（避免用旧基准吸附）
+    float.getWorkArea({ x: endX, y: endY }).then((wa) => {
+      if (wa && wa.width) workArea = wa
+      settle(endX, endY)
+    }).catch(() => settle(endX, endY))
+  } else setMenu(true) // 单击打开菜单
 })
 
 // 双击回主界面（抑制单击开菜单的残留）

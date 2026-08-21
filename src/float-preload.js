@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('float', {
   // 拖拽/吸附/主题
   setPos: (x, y) => ipcRenderer.invoke('float:set-pos', x, y),
   getPos: () => ipcRenderer.invoke('float:get-pos'),
-  getWorkArea: () => ipcRenderer.invoke('float:get-workarea'),
+  getWorkArea: (anchor) => ipcRenderer.invoke('float:get-workarea', anchor),
   getTheme: () => ipcRenderer.invoke('float:get-theme'),
   onTheme: (cb) => ipcRenderer.on('float:theme', (_e, dark) => cb(dark)),
   // 吸附状态记忆

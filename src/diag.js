@@ -52,6 +52,7 @@ function portInUse(port) {
 }
 
 // 采集诊断报告。settings: 主进程设置对象；opts: { appVersion, appName, targetUrl }
+// 性能：同一次采集内复用探测结果，避免重复启动子进程
 function collect(settings, opts = {}) {
   const home = os.homedir()
   const profileRoot = path.join(home, '.dsh', 'profiles')
@@ -68,12 +69,17 @@ function collect(settings, opts = {}) {
   const profileBinInfo = fileInfo(profileBin)
   const sourceCliInfo = fileInfo(sourceCli)
 
+  // 一次性探测（同一次采集内结果复用，避免重复启动 powershell/子进程）
+  const nodeVer = runVersion(process.execPath, ['--version']) || '获取失败'
+  const electronVer = (process.versions && process.versions.electron) || null
+  const portState = portInUse(dshCfg.port) // true=在线 / false=未监听 / null=未知
+
   // 关键探测结论
   const issues = []
   if (!profileBinInfo.exists) issues.push('已安装 DSH Profile 缺失（托管·Profile 模式不可用）')
   if (!sourceCliInfo.exists) issues.push('DSH 源码目录/入口不存在（托管·源码模式不可用）')
   if (!sourceTsx) issues.push('源码目录缺少 tsx 运行时（托管·源码模式启动会失败）')
-  if (dshCfg.mode === 'external' && portInUse(dshCfg.port) !== true) issues.push(`外部模式：端口 ${dshCfg.port} 未被监听，请先运行 start-dsh-web.ps1`)
+  if (dshCfg.mode === 'external' && portState !== true) issues.push(`外部模式：端口 ${dshCfg.port} 未被监听，请先运行 start-dsh-web.ps1`)
 
   const profileVersion = dshVersionFrom(profilePkgDir)
 
@@ -81,8 +87,8 @@ function collect(settings, opts = {}) {
     ['采集时间', new Date().toISOString().replace('T', ' ').slice(0, 19)],
     ['应用', `${opts.appName || 'JUNDSH'} v${opts.appVersion || '?'}`],
     ['操作系统', `${os.platform()} ${os.release()} (${os.arch()})`],
-    ['Node.js', runVersion(process.execPath, ['--version']) || '获取失败'],
-    ['Electron', process.versions && process.versions.electron || runVersion(process.execPath, ['-p', 'process.versions.electron']) || '?'],
+    ['Node.js', nodeVer],
+    ['Electron', electronVer || '内置'],
     ['打包形态', opts.isPackaged ? '已安装/打包' : '开发模式'],
     ['用户目录', home],
     ['DSH Profile 目录', profileRoot + (profileBinInfo.exists ? ' ✓' : ' ✗')],
@@ -93,7 +99,7 @@ function collect(settings, opts = {}) {
     ['  → tsx 运行时', sourceTsx ? '存在' : '缺失'],
     ['服务管理模式', dshCfg.mode],
     ['服务端口', dshCfg.port],
-    ['端口监听状态', portInUse(dshCfg.port) === true ? '在线' : portInUse(dshCfg.port) === false ? '未监听' : '未知'],
+    ['端口监听状态', portState === true ? '在线' : portState === false ? '未监听' : '未知'],
     ['目标地址', opts.targetUrl || '?'],
   ]
 

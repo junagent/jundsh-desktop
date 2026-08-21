@@ -98,11 +98,7 @@
         </button>
       </div>
       <div class="modal-body">
-        <div class="field">
-          <label for="input-url">DSH 服务地址</label>
-          <input id="input-url" type="text" spellcheck="false" autocomplete="off" placeholder="http://127.0.0.1:8080"/>
-          <p class="field-hint">小鲸鱼将在这里连接你的 DSH 服务</p>
-        </div>
+        <div class="sec-title">外观</div>
         <div class="field">
           <label for="input-zoom">界面缩放 <span id="zoom-val" class="badge">100%</span></label>
           <input id="input-zoom" type="range" min="50" max="200" step="5" value="100"/>
@@ -124,6 +120,12 @@
             <button class="seg-btn" data-skin="amber" title="暖阳琥珀">琥珀</button>
           </div>
           <p class="field-hint">参考开源社区主题：Cherry token 化 / LobeChat 低饱和霓虹 / LM Studio 曲率克制</p>
+        </div>
+        <div class="sec-title">常规</div>
+        <div class="field">
+          <label for="input-url">DSH 服务地址</label>
+          <input id="input-url" type="text" spellcheck="false" autocomplete="off" placeholder="http://127.0.0.1:8080"/>
+          <p class="field-hint">小鲸鱼将在这里连接你的 DSH 服务</p>
         </div>
         <div class="field row">
           <div class="grow">
@@ -155,8 +157,9 @@
             <span class="knob"></span>
           </label>
         </div>
+        <div class="sec-title">DSH 服务</div>
         <div class="field">
-          <label>DSH 服务管理</label>
+          <label>服务管理</label>
           <div class="seg" id="seg-dsh-mode">
             <button class="seg-btn" data-mode="external" title="服务由外部脚本或本机启动，客户端只负责探测连接">外部运行</button>
             <button class="seg-btn" data-mode="profile" title="由客户端拉起已安装的 DSH Profile">托管·Profile</button>
@@ -185,6 +188,7 @@
           <button class="btn ghost" id="btn-dsh-restart">重启</button>
           <button class="btn ghost" id="btn-dsh-stop">停止</button>
         </div>
+        <div class="sec-title">诊断</div>
         <div class="field">
           <label>环境诊断</label>
           <div class="row">

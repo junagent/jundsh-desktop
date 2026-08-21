@@ -222,6 +222,12 @@ function createMainWindow() {
   })
   mainWindow.webContents.on('render-process-gone', (event, details) => {
     console.error('[jundsh] shell 渲染进程退出:', JSON.stringify(details))
+    // 意外崩溃（非退出流程）自动重载外壳；限次避免崩溃循环风暴
+    if (!quitting && details.reason !== 'clean-exit') {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload()
+      }, 800)
+    }
   })
   mainWindow.webContents.on('console-message', (event) => {
     if (event.level >= 2) console.log('[jundsh:shell]', event.message, `(${event.sourceId}:${event.lineNumber})`)
@@ -801,10 +807,13 @@ function registerIpc() {
     const [x, y] = floatWindow.getPosition()
     return { x, y }
   }))
-  // 悬浮窗工作区（吸附计算用，以悬浮窗自身所在显示器为准）
-  ipcMain.handle('float:get-workarea', fguard(() => {
-    const anchor = (floatWindow && !floatWindow.isDestroyed()) ? floatWindow.getPosition() : [0, 0]
-    const { workArea } = screen.getDisplayNearestPoint({ x: anchor[0], y: anchor[1] })
+  // 悬浮窗工作区（吸附计算用，以悬浮窗自身所在显示器为准；可选按渲染器给出的锚点查询）
+  ipcMain.handle('float:get-workarea', fguard((_e, anchor) => {
+    let pos = (floatWindow && !floatWindow.isDestroyed()) ? floatWindow.getPosition() : [0, 0]
+    if (anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)) {
+      pos = [anchor.x, anchor.y]
+    }
+    const { workArea } = screen.getDisplayNearestPoint({ x: pos[0], y: pos[1] })
     return { x: workArea.x, y: workArea.y, width: workArea.width, height: workArea.height }
   }))
   ipcMain.handle('float:get-theme', fguard(() => nativeTheme.shouldUseDarkColors))

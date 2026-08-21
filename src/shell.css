@@ -462,6 +462,18 @@ webview {
 .grow { flex: 1; }
 
 .modal-body { padding: 16px 18px 6px; display: flex; flex-direction: column; gap: 18px; max-height: calc(100vh - 180px); overflow-y: auto; }
+
+/* 设置面板分组标题 */
+.sec-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--ds-text-3);
+  margin: 4px 0 -6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.sec-title:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 .field { display: flex; flex-direction: column; gap: 7px; }
 .field.row { flex-direction: row; align-items: center; gap: 14px; }
 .field > label { font-size: 12.5px; font-weight: 600; color: var(--ds-text-2); display: flex; align-items: center; gap: 8px; }
