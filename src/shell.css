@@ -182,6 +182,17 @@ body { display: flex; flex-direction: column; }
 
 @keyframes pulse { 50% { opacity: 0.25; } }
 
+/* 状态胶囊附加信息（端口/模式/运行时长） */
+.pill-info {
+  margin-left: 2px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line-strong);
+  color: var(--ds-text-3);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+}
+
 /* 窗口控制 */
 .divider { width: 1px; height: 16px; background: var(--line); margin: 0 6px; }
 
@@ -478,6 +489,7 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
 /* 开关 */
 .switch { position: relative; width: 40px; height: 22px; flex: none; cursor: pointer; }
 .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
 .switch .knob {
   position: absolute; inset: 0;
   border-radius: 999px;
@@ -505,6 +517,33 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
   border-top: 1px solid var(--line);
 }
 .foot-info { font-size: 11.5px; color: var(--ds-text-3); }
+
+/* 通用隐藏（设置面板字段显隐） */
+.hidden { display: none !important; }
+
+/* DSH 服务管理状态 */
+.svc-status {
+  display: flex; align-items: center; gap: 9px;
+  height: 36px; padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: hsla(0, 0%, 100%, 0.035);
+}
+.svc-dot {
+  width: 9px; height: 9px; flex: none;
+  border-radius: 50%;
+  background: var(--ds-text-3);
+}
+.svc-dot.ok {
+  background: var(--ds-green);
+  box-shadow: 0 0 8px rgba(40, 200, 64, 0.8);
+}
+.svc-dot.err {
+  background: var(--ds-red);
+  box-shadow: 0 0 8px rgba(255, 95, 87, 0.8);
+}
+.svc-dot.wait { animation: pulse 1.1s ease-in-out infinite; }
+.svc-line { flex: 1; font-size: 12.5px; color: var(--ds-text-2); }
 
 /* Toast */
 .toast {

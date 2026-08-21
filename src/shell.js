@@ -28,6 +28,45 @@ function setState(state) {
   if (state !== 'offline') stopRetry()
 }
 
+// DSH 服务状态：更新标题栏胶囊附加信息 + 设置面板状态块
+let lastDsh = null
+function renderDshState(state) {
+  if (!state) return
+  lastDsh = state
+  const info = $('pill-info')
+  if (state.alive) {
+    const modeTag = state.managed ? '托管' : state.mode === 'external' ? '外部' : '自动'
+    const up = state.uptimeSec ? fmtDuration(state.uptimeSec) : ''
+    info.textContent = `${state.port} · ${modeTag}${up ? ' ' + up : ''}`
+    pill.title = `DSH 服务正常（pid=${state.pid || '-'}，模式=${state.mode}）`
+  } else {
+    info.textContent = state.mode === 'external' ? `${state.port}` : `${state.port} · 未就绪`
+    pill.title = state.lastError || 'DSH 服务不可达'
+  }
+  // 设置面板
+  const line = $('dsh-status-line')
+  const dot = $('dsh-status-dot')
+  const detail = $('dsh-status-detail')
+  if (state.alive) {
+    dot.className = 'svc-dot ok'
+    line.textContent = `在线 · ${state.mode}模式${state.managed ? '（托管 pid=' + state.pid + '）' : state.pid ? '（pid=' + state.pid + '）' : ''}`
+    detail.textContent = state.uptimeSec ? `已运行 ${fmtDuration(state.uptimeSec)}` : ''
+  } else {
+    dot.className = 'svc-dot ' + (state.lastError ? 'err' : 'wait')
+    line.textContent = state.mode === 'external'
+      ? '未探测到服务（请先启动，或切换为托管模式由客户端拉起）'
+      : '服务未就绪'
+    detail.textContent = state.lastError || ''
+  }
+}
+function fmtDuration(sec) {
+  sec = Math.max(0, Math.floor(sec))
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60
+  if (h > 0) return `${h}h${String(m).padStart(2, '0')}m`
+  if (m > 0) return `${m}m${String(s).padStart(2, '0')}s`
+  return `${s}s`
+}
+
 // ---------------- 外观主题 ----------------
 function applyTheme(dark) {
   document.body.classList.toggle('light', !dark)
@@ -100,8 +139,26 @@ async function openSettings() {
   updateZoomFill()
   $('input-tray').checked = settings.minimizeToTray
   $('input-login').checked = !!settings.loginItem
+  $('input-dsh-port').value = settings.dsh?.port ?? 8080
+  $('input-dsh-repo').value = settings.dsh?.sourceRepo ?? ''
+  setDshMode(settings.dsh?.mode ?? 'external')
+  // 同步服务状态
+  renderDshState(lastDsh)
+  desktop.getDshStatus().then(renderDshState).catch(() => {})
   $('settings').classList.add('open')
   setTimeout(() => $('input-url').focus(), 120)
+}
+function setDshMode(scope, mode) {
+  document.querySelectorAll('#seg-dsh-mode .seg-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.mode === mode)
+  })
+  const managed = mode !== 'external'
+  $('dsh-port-field').classList.toggle('hidden', !managed)
+  $('dsh-repo-field').classList.toggle('hidden', mode !== 'source')
+  $('dsh-mode-hint').textContent =
+    mode === 'external' ? '外部模式：请先运行 start-dsh-web.ps1 启动服务' :
+    mode === 'profile' ? '托管·Profile：由客户端拉起已安装的 DSH Profile' :
+    '托管·源码：从源码仓库拉起 DSH（需 tsx 运行环境）'
 }
 function closeSettings() {
   $('settings').classList.remove('open')
@@ -131,6 +188,13 @@ async function saveSettings() {
     zoomFactor: Number($('input-zoom').value) / 100,
     theme: activeTheme,
   }
+  // DSH 服务配置
+  const activeDshMode = document.querySelector('#seg-dsh-mode .seg-btn.active')?.dataset.mode ?? 'external'
+  next.dsh = {
+    mode: activeDshMode,
+    port: Math.min(65535, Math.max(1, parseInt($('input-dsh-port').value, 10) || 8080)),
+    sourceRepo: $('input-dsh-repo').value.trim(),
+  }
   settings = await desktop.setSettings(next)
   closeSettings()
   const zoom = Math.min(2, Math.max(0.5, Number($('input-zoom').value) / 100))
@@ -142,6 +206,15 @@ async function saveSettings() {
     offlineUrl.textContent = url
   } else {
     setState('online')
+  }
+  // 托管模式下保存即尝试拉起服务
+  if (activeDshMode !== 'external') {
+    toast('正在启动 DSH 服务…')
+    desktop.startDsh().then((r) => {
+      renderDshState(r?.state)
+      if (r?.ok) toast('DSH 服务已就绪')
+      else toast('服务启动未完成，请查看状态')
+    }).catch(() => toast('服务启动失败'))
   }
   toast('设置已保存')
 }
@@ -162,6 +235,29 @@ async function init() {
       document.querySelectorAll('#seg-theme .seg-btn').forEach((x) => x.classList.remove('active'))
       b.classList.add('active')
     })
+  })
+
+  // DSH 服务模式切换（设置未保存前仅切换提示/显隐）
+  document.querySelectorAll('#seg-dsh-mode .seg-btn').forEach((b) => {
+    b.addEventListener('click', () => setDshMode(b.dataset.mode))
+  })
+
+  // DSH 服务控制
+  $('btn-dsh-start').addEventListener('click', async () => {
+    toast('正在启动/接入 DSH 服务…')
+    const r = await desktop.startDsh().catch(() => ({ state: null }))
+    renderDshState(r?.state)
+    toast(r?.attached ? '已接入外部服务' : r?.ok ? 'DSH 服务已启动' : '启动未完成，请查看服务状态')
+  })
+  $('btn-dsh-restart').addEventListener('click', async () => {
+    toast('正在重启 DSH 服务…')
+    const r = await desktop.restartDsh().catch(() => ({ state: null }))
+    if (r && r.state) renderDshState(r.state)
+  })
+  $('btn-dsh-stop').addEventListener('click', async () => {
+    const r = await desktop.stopDsh().catch(() => ({ state: null }))
+    if (r && r.state) renderDshState(r.state)
+    toast('已停止托管服务')
   })
 
   // 标题栏按钮
@@ -229,6 +325,10 @@ async function init() {
     else if (cmd === 'open-settings') openSettings()
   })
   desktop.onToast(toast)
+
+  // DSH 服务状态订阅
+  desktop.onDshStatus(renderDshState)
+  desktop.getDshStatus().then(renderDshState).catch(() => {})
 
   bindGui()
   gui.src = settings.targetUrl

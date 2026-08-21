@@ -6,6 +6,8 @@ const { autoUpdater } = require('electron-updater')
 const { execFileSync } = require('node:child_process')
 const path = require('node:path')
 const fs = require('node:fs')
+const os = require('node:os')
+const { DshService } = require('./dsh-svc')
 
 const APP_NAME = 'JUNDSH'
 const DEFAULT_URL = 'http://127.0.0.1:8080'
@@ -19,6 +21,7 @@ let tray = null
 let quitting = false
 let settings = null
 let saveTimer = null // 设置防抖写入定时器
+let dshSvc = null // DSH 服务管理器
 
 const assetsDir = (...p) => path.join(__dirname, '..', 'assets', ...p)
 const buildDir = (...p) => path.join(__dirname, '..', 'build', ...p)
@@ -39,7 +42,30 @@ function loadSettings() {
   settings.zoomFactor = Math.min(2, Math.max(0.5, Number(settings.zoomFactor) || 1))
   settings.theme = ['system', 'light', 'dark'].includes(settings.theme) ? settings.theme : 'system'
   settings.bounds = sanitizeBounds(settings.bounds)
+  // DSH 服务管理配置（默认外部模式，完全向后兼容）
+  settings.dsh = {
+    mode: ['external', 'profile', 'source'].includes(settings.dsh?.mode) ? settings.dsh.mode : 'external',
+    port: Math.min(65535, Math.max(1, parseInt(settings.dsh?.port, 10) || 8080)) || 8080,
+    sourceRepo: typeof settings.dsh?.sourceRepo === 'string' && settings.dsh.sourceRepo
+      ? settings.dsh.sourceRepo
+      : path.join(os.homedir(), 'deepseek-harness'),
+  }
   return settings
+}
+
+// DSH 服务管理器：把最新状态推给外壳
+function pushDshStatus(state) {
+  mainWindow?.webContents.send('dsh:status', state)
+}
+function requireDshSvc() {
+  if (dshSvc) return dshSvc
+  dshSvc = new DshService({
+    getSettings: () => settings,
+    send: pushDshStatus,
+    log: (...a) => console.log('[dsh-svc]', ...a.map((x) => (typeof x === 'string' ? x : (() => { try { return JSON.stringify(x) } catch { return String(x) } })()))),
+  })
+  dshSvc.start()
+  return dshSvc
 }
 
 // 校验窗口记忆位置在某个显示器内，避免屏幕变化后窗口跑到屏幕外
@@ -279,6 +305,9 @@ function createMainWindow() {
             offlineHidden: q('#offline')?.classList.contains('hidden'),
             pillClass: q('#status-pill')?.className,
             pillText: q('#status-text')?.textContent,
+            pillInfo: q('#pill-info')?.textContent,
+            dshStatusLine: q('#dsh-status-line')?.textContent,
+            dshModeActive: q('#seg-dsh-mode .seg-btn.active')?.dataset.mode,
             bodyLight: document.body.classList.contains('light'),
             guiSrc: q('#gui')?.getAttribute('src'),
             imgs,
@@ -435,6 +464,19 @@ function registerIpc() {
         app.setLoginItemSettings({ openAtLogin: patch.loginItem })
         // 注意：不持久化 loginItem，读取时实时来自 getLoginItemSettings
       }
+      if (patch.dsh && typeof patch.dsh === 'object') {
+        const next = { ...settings.dsh }
+        if (['external', 'profile', 'source'].includes(patch.dsh.mode)) {
+          next.mode = patch.dsh.mode
+          // 切换模式时同步端口默认值
+          if (typeof patch.dsh.port === 'number') next.port = Math.min(65535, Math.max(1, patch.dsh.port))
+        } else if (typeof patch.dsh.port === 'number') {
+          next.port = Math.min(65535, Math.max(1, patch.dsh.port))
+        }
+        if (typeof patch.dsh.sourceRepo === 'string' && patch.dsh.sourceRepo) next.sourceRepo = patch.dsh.sourceRepo
+        settings.dsh = next
+        if (dshSvc) dshSvc.applyConfig()
+      }
       saveSettings()
     }
     return settings
@@ -454,6 +496,22 @@ function registerIpc() {
     quitting = true
     app.relaunch()
     app.exit(0)
+  }))
+  // ---- DSH 服务管理 ----
+  ipcMain.handle('dsh:get-status', guard(() => requireDshSvc().getState()))
+  // 显式启动（外部模式探测到已可达则 attached；托管模式下拉起服务）
+  ipcMain.handle('dsh:start', guard(async () => requireDshSvc().startManaged()))
+  // 停止托管服务（外部模式不作处理）
+  ipcMain.handle('dsh:stop', guard(async () => {
+    const svc = requireDshSvc()
+    await svc.stopManaged()
+    return svc.getState()
+  }))
+  // 重启托管服务
+  ipcMain.handle('dsh:restart', guard(async () => {
+    const svc = requireDshSvc()
+    svc.applyConfig()
+    return await svc.restart({ force: true })
   }))
 }
 
@@ -475,6 +533,7 @@ if (!gotLock) {
     })
     registerIpc()
     setupAutoUpdate()
+    requireDshSvc() // 启动服务管理器（默认仅探测，不主动拉起）
     if (!DEBUG_SHOT) createTray()
     createSplash()
     createMainWindow()
@@ -494,6 +553,10 @@ if (!gotLock) {
       } catch (err) {
         console.error('[jundsh] 退出时保存设置失败:', err.message)
       }
+    }
+    // 停掉由本客户端托管的 DSH 子进程
+    if (dshSvc) {
+      dshSvc.stop().catch((err) => console.error('[jundsh] 停止 DSH 服务出错:', err && err.message))
     }
   })
 }

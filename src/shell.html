@@ -29,7 +29,7 @@
     </div>
 
     <div class="tb-group right">
-      <span id="status-pill" class="pill pill-connecting"><i></i><span id="status-text">连接中</span></span>
+      <span id="status-pill" class="pill pill-connecting"><i></i><span id="status-text">连接中</span><span id="pill-info" class="pill-info"></span></span>
       <button id="btn-open" class="nav-btn" title="在浏览器中打开">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       </button>
@@ -128,6 +128,36 @@
             <input id="input-login" type="checkbox"/>
             <span class="knob"></span>
           </label>
+        </div>
+        <div class="field">
+          <label>DSH 服务管理</label>
+          <div class="seg" id="seg-dsh-mode">
+            <button class="seg-btn" data-mode="external" title="服务由外部脚本或本机启动，客户端只负责探测连接">外部运行</button>
+            <button class="seg-btn" data-mode="profile" title="由客户端拉起已安装的 DSH Profile">托管·Profile</button>
+            <button class="seg-btn" data-mode="source" title="由客户端从源码仓库拉起 DSH">托管·源码</button>
+          </div>
+          <p class="field-hint" id="dsh-mode-hint">外部模式：请先运行 start-dsh-web.ps1 启动 8080 服务</p>
+        </div>
+        <div class="field" id="dsh-port-field">
+          <label for="input-dsh-port">端口</label>
+          <input id="input-dsh-port" type="text" spellcheck="false" autocomplete="off" placeholder="8080"/>
+        </div>
+        <div class="field" id="dsh-repo-field">
+          <label for="input-dsh-repo">DSH 源码目录</label>
+          <input id="input-dsh-repo" type="text" spellcheck="false" autocomplete="off" placeholder="C:\Users\...\deepseek-harness"/>
+        </div>
+        <div class="field">
+          <label>服务状态</label>
+          <div class="svc-status" id="dsh-status">
+            <span class="svc-dot" id="dsh-status-dot"></span>
+            <span class="svc-line" id="dsh-status-line">探测中…</span>
+          </div>
+          <p class="field-hint" id="dsh-status-detail"></p>
+        </div>
+        <div class="field row">
+          <button class="btn ghost" id="btn-dsh-start">启动服务</button>
+          <button class="btn ghost" id="btn-dsh-restart">重启</button>
+          <button class="btn ghost" id="btn-dsh-stop">停止</button>
         </div>
       </div>
       <div class="modal-foot">

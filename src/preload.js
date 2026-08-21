@@ -20,4 +20,10 @@ contextBridge.exposeInMainWorld('desktop', {
   onCommand: (cb) => ipcRenderer.on('app:command', (_e, cmd) => cb(cmd)),
   onTheme: (cb) => ipcRenderer.on('theme:changed', (_e, v) => cb(v)),
   onToast: (cb) => ipcRenderer.on('app:toast', (_e, msg) => cb(msg)),
+  // ---- DSH 服务管理 ----
+  getDshStatus: () => ipcRenderer.invoke('dsh:get-status'),
+  startDsh: () => ipcRenderer.invoke('dsh:start'),
+  stopDsh: () => ipcRenderer.invoke('dsh:stop'),
+  restartDsh: () => ipcRenderer.invoke('dsh:restart'),
+  onDshStatus: (cb) => ipcRenderer.on('dsh:status', (_e, state) => cb(state)),
 })
