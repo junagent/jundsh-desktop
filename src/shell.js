@@ -433,9 +433,10 @@ async function init() {
   $('btn-close').addEventListener('click', () => desktop.close())
   desktop.onMaximized(setMaximized)
 
-  // 标题栏双击最大化/还原（按钮区域除外）
+  // 标题栏双击最大化/还原（按钮区域除外；弹窗打开时忽略，避免误操作）
   $('titlebar').addEventListener('dblclick', (e) => {
     if (e.target.closest('button')) return
+    if ($('settings').classList.contains('open')) return
     desktop.toggleMaximize().then(setMaximized)
   })
 
@@ -526,9 +527,14 @@ async function init() {
 
   // 键盘
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && $('settings').classList.contains('open')) { closeSettings(); return }
+    // Esc：先关设置，再关终端（若有），避免层层叠弹窗
+    if (e.key === 'Escape') {
+      if ($('settings').classList.contains('open')) { closeSettings(); return }
+      if (termOpen && !termBox.classList.contains('hidden')) { toggleTerm(false); return }
+    }
     if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) { desktop.openDevTools(); return }
-    if (e.ctrlKey && !e.shiftKey) {
+    if (e.ctrlKey && !e.shiftKey && !$('settings').classList.contains('open')) {
+      // 设置弹窗打开时禁用缩放快捷键，避免干扰滑块操作
       if (e.key === '=' || e.key === '+') { e.preventDefault(); zoomBy(0.05) }
       else if (e.key === '-') { e.preventDefault(); zoomBy(-0.05) }
       else if (e.key === '0') { e.preventDefault(); applyZoom(1); $('input-zoom').value = 100; updateZoomFill(); persistZoom() }
