@@ -33,6 +33,14 @@
 - 托盘菜单新增「桌面悬浮鲸鱼」开关
 - 离线页新增「一键启动服务」（托管模式直接拉起；外部模式引导去设置）
 
+**修复与打磨（第五轮追加，自主审计落地）**
+- **P0 关键修复**：DSH 托管模式（profile/source）在真实 Electron 运行中改用**系统 node.exe** 启动（与 start-dsh-web.ps1 一致，DSH HMR 无需特殊参数）；无系统 node 时回退 Electron 二进制 + `ELECTRON_RUN_AS_NODE=1` + `--expose-internals`。修复前该模式用 `process.execPath`（=electron.exe）启动必然失败。
+- 清理死代码：`assetsDir`/`listenerPid`/`ensureTermAfterReload` 删除；`showFloatWindow` 复用为托盘「显示悬浮鲸鱼」恢复入口
+- 托盘悬浮开关与设置面板状态同步（修改后即时刷新托盘菜单）
+- 设置「恢复默认」立即真实落盘（不再需要再点「完成」）
+- 悬浮窗 IPC 增加 sender 校验 + 坐标 clamp（防越界拖出屏幕）
+- 运行时长格式化支持超过 24h 显示 `Nd Xh`
+
 ## v1.2.0 (2026-08-20)
 
 - 高 DPI 托盘图标 @2x + 开机自启状态实时化
