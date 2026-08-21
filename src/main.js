@@ -27,7 +27,6 @@ let saveTimer = null // 设置防抖写入定时器
 let dshSvc = null // DSH 服务管理器
 let termChild = null // 内置终端子进程
 
-const assetsDir = (...p) => path.join(__dirname, '..', 'assets', ...p)
 const buildDir = (...p) => path.join(__dirname, '..', 'build', ...p)
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
 
@@ -540,6 +539,13 @@ function createTray() {
   const icon = nativeImage.createFromPath(buildDir('tray.png'))
   tray = new Tray(icon)
   tray.setToolTip(`${APP_NAME} · DSH 桌面端`)
+  refreshTrayMenu()
+  tray.on('double-click', showMainWindow)
+}
+
+// 重建托盘菜单（悬浮开关状态变化后刷新，保证托盘与设置/悬浮窗一致）
+function refreshTrayMenu() {
+  if (!tray) return
   const menu = Menu.buildFromTemplate([
     { label: '显示主界面', click: showMainWindow },
     { type: 'separator' },
@@ -558,8 +564,10 @@ function createTray() {
           floatWindow.close()
           floatWindow = null
         }
+        refreshTrayMenu()
       },
     },
+    { label: '显示悬浮鲸鱼', click: showFloatWindow, enabled: settings.floatEnabled !== false },
     { label: '设置…', click: () => mainWindow?.webContents.send('app:command', 'open-settings') },
     { label: '检查更新…', click: () => {
       if (!app.isPackaged) { mainWindow?.webContents.send('app:toast', '开发模式不检查更新'); return }
@@ -576,7 +584,6 @@ function createTray() {
     },
   ])
   tray.setContextMenu(menu)
-  tray.on('double-click', showMainWindow)
 }
 
 // ---------------- 窗口状态记忆 ----------------
@@ -658,6 +665,7 @@ function registerIpc() {
           floatWindow.close()
           floatWindow = null
         }
+        refreshTrayMenu()
       }
       saveSettings()
     }
@@ -726,43 +734,52 @@ function registerIpc() {
     return { ok: true }
   }))
   ipcMain.handle('term:close', guard(() => { killTermChild(); return { ok: true } }))
-  // ---- 桌面悬浮鲸鱼（独立 sender，不用 shell 的 guard） ----
-  ipcMain.handle('float:get-status', () => requireDshSvc().getState())
-  ipcMain.on('float:toggle-main', () => showMainWindow())
-  ipcMain.on('float:open-settings', () => {
+  // ---- 桌面悬浮鲸鱼（独立 sender，仅接受悬浮窗自身 webContents） ----
+  const fguard = (fn) => (event, ...args) => {
+    if (!floatWindow || floatWindow.isDestroyed() || event.sender !== floatWindow.webContents) return
+    return fn(event, ...args)
+  }
+  ipcMain.handle('float:get-status', fguard(() => requireDshSvc().getState()))
+  ipcMain.on('float:toggle-main', fguard(() => showMainWindow()))
+  ipcMain.on('float:open-settings', fguard(() => {
     showMainWindow()
     setTimeout(() => mainWindow?.webContents.send('app:command', 'open-settings'), 120)
-  })
-  ipcMain.on('float:quit', () => {
+  }))
+  ipcMain.on('float:quit', fguard(() => {
     quitting = true
     app.quit()
-  })
-  ipcMain.on('float:hide-self', () => {
+  }))
+  ipcMain.on('float:hide-self', fguard(() => {
     floatWindow?.hide()
-  })
-  // 拖拽位置（悬浮窗手动拖动时，经 IPC 移动并持久化）
-  ipcMain.handle('float:set-pos', (_e, x, y) => {
+  }))
+  // 拖拽位置（悬浮窗手动拖动时，经 IPC 移动并持久化）；坐标 clamp 在所在显示器内
+  ipcMain.handle('float:set-pos', fguard((_e, x, y) => {
     if (!floatWindow || floatWindow.isDestroyed()) return { ok: false }
     const px = Math.round(Number(x))
     const py = Math.round(Number(y))
     if (!Number.isFinite(px) || !Number.isFinite(py)) return { ok: false }
-    floatWindow.setPosition(px, py)
-    settings.floatBounds = { x: px, y: py }
+    const anchor = floatWindow.getPosition()
+    const wa = screen.getDisplayNearestPoint({ x: anchor[0], y: anchor[1] }).workArea
+    const c = (v, min, max) => Math.max(min, Math.min(max, v))
+    const cx = c(px, wa.x - 64, wa.x + wa.width - 64)
+    const cy = c(py, wa.y, wa.y + wa.height - 128)
+    floatWindow.setPosition(cx, cy)
+    settings.floatBounds = { x: cx, y: cy }
     saveSettings()
     return { ok: true }
-  })
-  ipcMain.handle('float:get-pos', () => {
+  }))
+  ipcMain.handle('float:get-pos', fguard(() => {
     if (!floatWindow || floatWindow.isDestroyed()) return null
     const [x, y] = floatWindow.getPosition()
     return { x, y }
-  })
+  }))
   // 悬浮窗工作区（吸附计算用，以悬浮窗自身所在显示器为准）
-  ipcMain.handle('float:get-workarea', () => {
+  ipcMain.handle('float:get-workarea', fguard(() => {
     const anchor = (floatWindow && !floatWindow.isDestroyed()) ? floatWindow.getPosition() : [0, 0]
     const { workArea } = screen.getDisplayNearestPoint({ x: anchor[0], y: anchor[1] })
     return { x: workArea.x, y: workArea.y, width: workArea.width, height: workArea.height }
-  })
-  ipcMain.handle('float:get-theme', () => nativeTheme.shouldUseDarkColors)
+  }))
+  ipcMain.handle('float:get-theme', fguard(() => nativeTheme.shouldUseDarkColors))
 }
 
 // 主题变化也通知悬浮窗（黑/白鲸鱼切换）

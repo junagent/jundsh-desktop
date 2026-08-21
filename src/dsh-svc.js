@@ -14,12 +14,34 @@ const { spawn } = require('node:child_process')
 const http = require('node:http')
 const path = require('node:path')
 const os = require('node:os')
+const fs = require('node:fs')
 
 const MODES = ['external', 'profile', 'source']
 const PROBE_INTERVAL = 5000 // 健康检查间隔
 const FAIL_THRESHOLD = 2 // 连续失败 N 次才判定"服务不可用"
 const MAX_RESTARTS = 5 // 单轮看门狗最大重启次数
 const RESTART_BASE_DELAY = 2000 // 重启退避基数(ms)，每次翻倍
+
+// 解析可用的 Node 解释器：
+// 1) 系统安装的 node.exe（与 start-dsh-web.ps1 一致，DSH HMR 无需 --expose-internals）
+// 2) 回退：Electron 自带二进制 + ELECTRON_RUN_AS_NODE=1（须附 --expose-internals 满足 DSH HMR 检测）
+function resolveNode() {
+  const cands = []
+  const pf = process.env.ProgramFiles || 'C:\\Program Files'
+  const pfx = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)'
+  cands.push(path.join(pf, 'nodejs', 'node.exe'))
+  if (pfx !== pf) cands.push(path.join(pfx, 'nodejs', 'node.exe'))
+  for (const c of cands) {
+    try { if (fs.existsSync(c)) return { cmd: c, isElectronFallback: false } } catch { /* ignore */ }
+  }
+  return { cmd: process.execPath, isElectronFallback: true }
+}
+
+let _nodeResolved = null
+function nodeInfo() {
+  if (!_nodeResolved) _nodeResolved = resolveNode()
+  return _nodeResolved
+}
 
 // 阻塞式 HTTP 探测：任意 <500 状态码都视为服务在响应；超时/连不上视为失败
 function httpOk(url, timeoutMs = 2500) {
@@ -42,21 +64,6 @@ function httpOk(url, timeoutMs = 2500) {
     req.on('error', () => resolve(false))
     req.on('timeout', () => { req.destroy(); resolve(false) })
   })
-}
-
-// 探测一个 URL 的监听 PID：专用于判断"进程在但端口没通"的场景
-function listenerPid(port) {
-  try {
-    const { execFileSync } = require('node:child_process')
-    const out = execFileSync('powershell', [
-      '-NoProfile', '-Command',
-      `(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess`,
-    ], { encoding: 'utf8', timeout: 4000, windowsHide: true })
-    const n = parseInt(String(out).trim(), 10)
-    return Number.isFinite(n) && n > 0 ? n : null
-  } catch {
-    return null
-  }
 }
 
 class DshService {
@@ -277,20 +284,23 @@ class DshService {
   buildCommand() {
     const cfg = this.getSettings().dsh || {}
     const port = this.state.port
+    const { cmd, isElectronFallback } = nodeInfo()
+    // Electron 回退模式需要 --expose-internals 才能满足 DSH HMR 服务的检测
+    const extra = isElectronFallback ? ['--expose-internals'] : []
     if (this.state.mode === 'profile') {
       const profileRoot = path.join(os.homedir(), '.dsh', 'profiles')
       const bin = path.join(profileRoot, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
       return {
-        cmd: process.execPath,
-        args: [bin, 'web', '--port', String(port), '--no-open'],
+        cmd,
+        args: [...extra, bin, 'web', '--port', String(port), '--no-open'],
         cwd: profileRoot,
       }
     }
     if (this.state.mode === 'source') {
       const repo = cfg.sourceRepo || ''
       return {
-        cmd: process.execPath,
-        args: ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web', '--port', String(port), '--no-open'],
+        cmd,
+        args: [...extra, '--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web', '--port', String(port), '--no-open'],
         cwd: repo,
       }
     }
@@ -312,10 +322,13 @@ class DshService {
     }
     this.log('launching', cmd.cmd, ...cmd.args, 'cwd:', cmd.cwd)
     try {
+      // 关键：在 Electron 里 process.execPath 指向 electron/JUNDSH.exe，
+      // 必须设 ELECTRON_RUN_AS_NODE=1 让它以纯 node 模式运行 DSH 脚本，
+      // 否则托管模式启动必然失败（Electron 官方文档约定）。
       this.child = spawn(cmd.cmd, cmd.args, {
         cwd: cmd.cwd,
         windowsHide: true,
-        env: { ...process.env },
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
         stdio: ['ignore', 'pipe', 'pipe'],
       })
       this.startedAt = Date.now()

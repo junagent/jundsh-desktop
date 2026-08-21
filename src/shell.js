@@ -61,7 +61,11 @@ function renderDshState(state) {
 }
 function fmtDuration(sec) {
   sec = Math.max(0, Math.floor(sec))
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60
+  const d = Math.floor(sec / 86400)
+  const h = Math.floor((sec % 86400) / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = sec % 60
+  if (d > 0) return `${d}d ${h}h`
   if (h > 0) return `${h}h${String(m).padStart(2, '0')}m`
   if (m > 0) return `${m}m${String(s).padStart(2, '0')}s`
   return `${s}s`
@@ -317,13 +321,6 @@ async function toggleTerm(forceOpen) {
   setTimeout(() => termIn.focus(), 60)
 }
 
-// 重新打开时（刷新页面），尝试续接或重启
-function ensureTermAfterReload() {
-  if (termOpen && termBox.classList.contains('hidden') === false) {
-    // webview 刷新不影响终端；只需重新订阅为安全（desktop.onTerm 每次 init 注册一次）
-  }
-}
-
 // ---------------- 初始化 ----------------
 async function init() {
   settings = await desktop.getSettings()
@@ -428,10 +425,36 @@ async function init() {
     updateZoomFill()
     $('input-tray').checked = true
     $('input-login').checked = false
+    $('input-float').checked = true
     setSegTheme('system')
     setSegSkin('default')
     applySkin('default')
-    toast('已恢复默认，点击「完成」保存')
+    // 「恢复默认」立即生效落盘，避免用户只见控件变、未保存造成困惑
+    try {
+      const resetDshMode = document.querySelector('#seg-dsh-mode .seg-btn.active')?.dataset.mode ?? 'external'
+      await desktop.setSettings({
+        targetUrl: settings.defaultUrl,
+        minimizeToTray: true,
+        loginItem: false,
+        floatEnabled: true,
+        zoomFactor: 1,
+        theme: 'system',
+        skin: 'default',
+        dsh: { mode: resetDshMode, port: settings.dsh?.port ?? 8080, sourceRepo: settings.dsh?.sourceRepo ?? '' },
+      })
+      applyZoom(1)
+      if (settings.defaultUrl !== gui.getURL()) {
+        loadedOnce = false
+        setState('connecting')
+        gui.src = settings.defaultUrl
+        offlineUrl.textContent = settings.defaultUrl
+      } else {
+        setState('online')
+      }
+      toast('已恢复默认')
+    } catch {
+      toast('恢复默认失败，请重试')
+    }
   })
   $('btn-settings-close').addEventListener('click', closeSettings)
   $('settings').addEventListener('click', (e) => { if (e.target === $('settings')) closeSettings() })

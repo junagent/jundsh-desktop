@@ -91,7 +91,8 @@ function applyStatus(s) {
 }
 function fmt(sec) {
   sec = Math.max(0, Math.floor(sec))
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60)
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60)
+  if (d) return `${d}d ${h}h`
   if (h) return `${h}h${String(m).padStart(2, '0')}m`
   return `${m}m${String(sec % 60).padStart(2, '0')}s`
 }
