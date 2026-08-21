@@ -567,6 +567,57 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
   user-select: text;
 }
 
+/* ---------------- 内置终端 ---------------- */
+.term {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 200px;
+  z-index: 25;
+  display: flex; flex-direction: column;
+  background: rgba(11, 12, 14, 0.92);
+  border-top: 1px solid var(--line-strong);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.45);
+}
+.term-head {
+  display: flex; align-items: center; gap: 8px;
+  height: 34px; padding: 0 10px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.term-title { font-size: 11.5px; font-weight: 600; color: var(--ds-text-2); letter-spacing: 0.4px; }
+.term-status { font-size: 11px; color: var(--ds-text-3); }
+.term-out {
+  flex: 1;
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #d7dce3;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+}
+.term-input-row {
+  display: flex; align-items: center; gap: 8px;
+  height: 34px; flex: none;
+  padding: 0 12px;
+  border-top: 1px solid var(--line);
+}
+.term-prompt { font-family: Consolas, monospace; font-size: 12px; color: var(--ds-blue); font-weight: 700; }
+.term-in {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--ds-text);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 12.5px;
+  outline: none;
+  user-select: text;
+}
+
 /* Toast */
 .toast {
   position: fixed; bottom: 24px; left: 50%;

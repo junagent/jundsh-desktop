@@ -7,6 +7,7 @@ const { execFileSync } = require('node:child_process')
 const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
+const { spawn } = require('node:child_process')
 const { DshService } = require('./dsh-svc')
 const diag = require('./diag')
 
@@ -23,6 +24,7 @@ let quitting = false
 let settings = null
 let saveTimer = null // 设置防抖写入定时器
 let dshSvc = null // DSH 服务管理器
+let termChild = null // 内置终端子进程
 
 const assetsDir = (...p) => path.join(__dirname, '..', 'assets', ...p)
 const buildDir = (...p) => path.join(__dirname, '..', 'build', ...p)
@@ -306,6 +308,27 @@ function createMainWindow() {
             const dr = await window.desktop.getDiag();
             diagSummary = { issues: dr.issues, head: dr.report.split('\\n').slice(0, 4) };
           } catch (e) { diagSummary = { err: String(e) }; }
+          // 终端冒烟（走真实 UI：点击标题栏终端按钮 → 发命令 → 读状态 → 关闭）
+          let termSummary = null;
+          try {
+            const before = { hidden: q('#term').classList.contains('hidden'), status: q('#term-status')?.textContent };
+            q('#btn-term').click();
+            await new Promise((r) => setTimeout(r, 300));
+            const mid = { hidden: q('#term').classList.contains('hidden'), status: q('#term-status')?.textContent };
+            await new Promise((r) => setTimeout(r, 1500));
+            const shown = q('#term') && !q('#term').classList.contains('hidden');
+            const status = q('#term-status')?.textContent;
+            const input = q('#term-in');
+            if (input) {
+              input.value = 'Write-Output JUNDSH_TERM_E2E';
+              input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            }
+            await new Promise((r) => setTimeout(r, 1500));
+            const outTail = (q('#term-out')?.textContent || '').slice(-300);
+            const finalStatus = q('#term-status')?.textContent;
+            q('#btn-term-close').click();
+            termSummary = { before, mid, shown, status, finalStatus, echoed: outTail.includes('JUNDSH_TERM_E2E') };
+          } catch (e) { termSummary = { err: String(e), stack: String(e && e.stack).slice(0, 300) }; }
           return {
             veilHidden: q('#veil')?.classList.contains('hidden'),
             offlineHidden: q('#offline')?.classList.contains('hidden'),
@@ -318,6 +341,7 @@ function createMainWindow() {
             guiSrc: q('#gui')?.getAttribute('src'),
             imgs,
             diagSummary,
+            termSummary,
           };
         })()`)
         console.log('[jundsh:debug] DOM:', JSON.stringify(dom))
@@ -527,6 +551,45 @@ function registerIpc() {
     targetUrl: settings.targetUrl,
     isPackaged: app.isPackaged,
   })))
+  // ---- 内置终端（轻量：PowerShell 子进程 + IPC 双向串流，零原生依赖）----
+  ipcMain.handle('term:open', guard(() => {
+    killTermChild()
+    const cwd = settings.termCwd && fs.existsSync(settings.termCwd) ? settings.termCwd : os.homedir()
+    termChild = spawn('powershell.exe', ['-NoLogo', '-NoExit', '-Command', 'Set-Location -LiteralPath ' + JSON.stringify(cwd)], {
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    termChild.stdout.on('data', (d) => mainWindow?.webContents.send('term:data', d.toString('utf8')))
+    termChild.stderr.on('data', (d) => mainWindow?.webContents.send('term:data', d.toString('utf8')))
+    termChild.once('exit', (code) => {
+      mainWindow?.webContents.send('term:exit', code)
+      termChild = null
+    })
+    return { ok: true, cwd }
+  }))
+  ipcMain.handle('term:input', guard((_e, line) => {
+    if (!termChild || termChild.exitCode !== null) return { ok: false }
+    // 兼容任意结尾：统一补 \n；特殊保留为一行
+    const s = String(line == null ? '' : line).replace(/\r?\n/g, '')
+    termChild.stdin.write(s + '\n')
+    return { ok: true }
+  }))
+  ipcMain.handle('term:close', guard(() => { killTermChild(); return { ok: true } }))
+}
+
+function killTermChild() {
+  if (termChild && termChild.exitCode === null) {
+    try { termChild.stdin.end() } catch { /* ignore */ }
+    try { termChild.kill() } catch { /* ignore */ }
+    // 强杀兜底
+    const pid = termChild.pid
+    if (pid) {
+      try {
+        spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true })
+      } catch { /* ignore */ }
+    }
+  }
+  termChild = null
 }
 
 // ---------------- 生命周期 ----------------
@@ -572,5 +635,6 @@ if (!gotLock) {
     if (dshSvc) {
       dshSvc.stop().catch((err) => console.error('[jundsh] 停止 DSH 服务出错:', err && err.message))
     }
+    killTermChild()
   })
 }

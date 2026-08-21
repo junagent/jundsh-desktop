@@ -30,6 +30,9 @@
 
     <div class="tb-group right">
       <span id="status-pill" class="pill pill-connecting"><i></i><span id="status-text">连接中</span><span id="pill-info" class="pill-info"></span></span>
+      <button id="btn-term" class="nav-btn" title="终端">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-5-6-5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      </button>
       <button id="btn-open" class="nav-btn" title="在浏览器中打开">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       </button>
@@ -182,6 +185,27 @@
   </div>
 
   <div id="toast" class="toast"></div>
+
+  <!-- 内置终端抽屉 -->
+  <div id="term" class="term hidden">
+    <div class="term-head">
+      <span class="term-title">PowerShell 终端</span>
+      <span class="spacer"></span>
+      <span id="term-status" class="term-status">未连接</span>
+      <div class="divider"></div>
+      <button id="btn-term-clear" class="nav-btn" title="清屏">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><path d="M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+      </button>
+      <button id="btn-term-close" class="nav-btn" title="关闭终端">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </div>
+    <pre id="term-out" class="term-out"></pre>
+    <div class="term-input-row">
+      <span class="term-prompt">PS&gt;</span>
+      <input id="term-in" class="term-in" type="text" spellcheck="false" autocomplete="off" placeholder="输入命令，回车执行"/>
+    </div>
+  </div>
 
   <script src="shell.js"></script>
 </body>

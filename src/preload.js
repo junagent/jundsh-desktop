@@ -27,5 +27,11 @@ contextBridge.exposeInMainWorld('desktop', {
   restartDsh: () => ipcRenderer.invoke('dsh:restart'),
   // ---- 环境诊断 ----
   getDiag: () => ipcRenderer.invoke('diag:collect'),
+  // ---- 内置终端 ----
+  termOpen: () => ipcRenderer.invoke('term:open'),
+  termInput: (line) => ipcRenderer.invoke('term:input', line),
+  termClose: () => ipcRenderer.invoke('term:close'),
+  onTermData: (cb) => ipcRenderer.on('term:data', (_e, d) => cb(d)),
+  onTermExit: (cb) => ipcRenderer.on('term:exit', (_e, code) => cb(code)),
   onDshStatus: (cb) => ipcRenderer.on('dsh:status', (_e, state) => cb(state)),
 })

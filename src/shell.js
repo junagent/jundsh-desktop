@@ -260,6 +260,55 @@ async function saveSettings() {
   toast('设置已保存')
 }
 
+// ---------------- 内置终端 ----------------
+const termBox = $('term')
+const termOut = $('term-out')
+const termIn = $('term-in')
+const termStatus = $('term-status')
+let termOpen = false
+const TERM_MAX = 20000 // 输出缓冲上限（字符）
+
+function appendTerm(d) {
+  let txt = String(d)
+  termOut.textContent += txt
+  // 截断过旧内容，保持顶部最新窗口
+  if (termOut.textContent.length > TERM_MAX) {
+    termOut.textContent = termOut.textContent.slice(-TERM_MAX)
+  }
+  termOut.scrollTop = termOut.scrollHeight
+}
+
+async function toggleTerm(forceOpen) {
+  // 当前不可见（含 hidden 类）→ 目标为打开；否则关闭
+  const wantOpen = forceOpen !== undefined ? forceOpen : termBox.classList.contains('hidden')
+  if (!wantOpen) {
+    await desktop.termClose().catch(() => {})
+    termBox.classList.add('hidden')
+    termOpen = false
+    termStatus.textContent = '已关闭'
+    $('btn-term').classList.remove('active')
+    return
+  }
+  termBox.classList.remove('hidden')
+  termOpen = true
+  $('btn-term').classList.add('active')
+  termStatus.textContent = '连接中…'
+  try {
+    const r = await desktop.termOpen()
+    termStatus.textContent = r.ok ? `在线 (${r.cwd})` : '失败'
+  } catch {
+    termStatus.textContent = '启动失败'
+  }
+  setTimeout(() => termIn.focus(), 60)
+}
+
+// 重新打开时（刷新页面），尝试续接或重启
+function ensureTermAfterReload() {
+  if (termOpen && termBox.classList.contains('hidden') === false) {
+    // webview 刷新不影响终端；只需重新订阅为安全（desktop.onTerm 每次 init 注册一次）
+  }
+}
+
 // ---------------- 初始化 ----------------
 async function init() {
   settings = await desktop.getSettings()
@@ -303,6 +352,26 @@ async function init() {
 
   // 环境诊断
   $('btn-diag').addEventListener('click', runDiag)
+
+  // 内置终端
+  $('btn-term').addEventListener('click', () => toggleTerm())
+  $('btn-term-close').addEventListener('click', () => toggleTerm(false))
+  $('btn-term-clear').addEventListener('click', () => { termOut.textContent = '' })
+  termIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const line = termIn.value
+      termIn.value = ''
+      // 本地回显
+      appendTerm('PS> ' + line + '\n')
+      desktop.termInput(line).catch(() => {})
+    }
+  })
+  desktop.onTermData(appendTerm)
+  desktop.onTermExit((code) => {
+    termStatus.textContent = code === 0 ? '已退出' : `已退出(code=${code})`
+    termOpen = false
+    $('btn-term').classList.remove('active')
+  })
 
   // 标题栏按钮
   $('btn-min').addEventListener('click', () => desktop.minimize())
@@ -382,6 +451,14 @@ async function init() {
   // DSH 服务状态订阅
   desktop.onDshStatus(renderDshState)
   desktop.getDshStatus().then(renderDshState).catch(() => {})
+
+  // 键盘：Ctrl+` 快速开关终端
+  document.addEventListener('keydown', (e2) => {
+    if (e2.ctrlKey && !e2.shiftKey && !e2.altKey && (e2.key === '`' || e2.key === '~')) {
+      e2.preventDefault()
+      toggleTerm()
+    }
+  })
 
   bindGui()
   gui.src = settings.targetUrl
