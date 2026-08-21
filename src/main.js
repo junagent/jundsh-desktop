@@ -45,6 +45,7 @@ function loadSettings() {
   settings.minimizeToTray = settings.minimizeToTray !== false
   settings.zoomFactor = Math.min(2, Math.max(0.5, Number(settings.zoomFactor) || 1))
   settings.theme = ['system', 'light', 'dark'].includes(settings.theme) ? settings.theme : 'system'
+  settings.skin = ['default', 'violet', 'emerald', 'amber'].includes(settings.skin) ? settings.skin : 'default'
   settings.bounds = sanitizeBounds(settings.bounds)
   // DSH 服务管理配置（默认外部模式，完全向后兼容）
   settings.dsh = {
@@ -322,8 +323,9 @@ function createMainWindow() {
             const dr = await window.desktop.getDiag();
             diagSummary = { issues: dr.issues, head: dr.report.split('\\n').slice(0, 4) };
           } catch (e) { diagSummary = { err: String(e) }; }
-          // 终端冒烟（走真实 UI：点击标题栏终端按钮 → 发命令 → 读状态 → 关闭）
+          // 终端 + 皮肤冒烟（走真实 UI）
           let termSummary = null;
+          let skinSummary = null;
           try {
             const before = { hidden: q('#term').classList.contains('hidden'), status: q('#term-status')?.textContent };
             q('#btn-term').click();
@@ -342,7 +344,20 @@ function createMainWindow() {
             const finalStatus = q('#term-status')?.textContent;
             q('#btn-term-close').click();
             termSummary = { before, mid, shown, status, finalStatus, echoed: outTail.includes('JUNDSH_TERM_E2E') };
-          } catch (e) { termSummary = { err: String(e), stack: String(e && e.stack).slice(0, 300) }; }
+            // 皮肤冒烟：切到极光紫，验证 body.skin-violet 生效，然后还原默认
+            const skinBtn = q('#seg-skin .seg-btn[data-skin="violet"]');
+            skinBtn?.click();
+            await new Promise((r) => setTimeout(r, 120));
+            skinSummary = {
+              hasClass: document.body.classList.contains('skin-violet'),
+              active: q('#seg-skin .seg-btn.active')?.dataset.skin,
+            };
+            const dft = q('#seg-skin .seg-btn[data-skin="default"]');
+            dft?.click();
+          } catch (e) {
+            termSummary = termSummary || { err: String(e), stack: String(e && e.stack).slice(0, 300) };
+            skinSummary = skinSummary || { err: String(e) };
+          }
           return {
             veilHidden: q('#veil')?.classList.contains('hidden'),
             offlineHidden: q('#offline')?.classList.contains('hidden'),
@@ -356,6 +371,7 @@ function createMainWindow() {
             imgs,
             diagSummary,
             termSummary,
+            skinSummary,
           };
         })()`)
         console.log('[jundsh:debug] DOM:', JSON.stringify(dom))
@@ -580,6 +596,9 @@ function registerIpc() {
       if (['system', 'light', 'dark'].includes(patch.theme)) {
         settings.theme = patch.theme
         applyTheme()
+      }
+      if (['default', 'violet', 'emerald', 'amber'].includes(patch.skin)) {
+        settings.skin = patch.skin
       }
       if (typeof patch.loginItem === 'boolean') {
         app.setLoginItemSettings({ openAtLogin: patch.loginItem })

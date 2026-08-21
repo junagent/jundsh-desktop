@@ -76,6 +76,16 @@ function setSegTheme(theme) {
     b.classList.toggle('active', b.dataset.theme === theme)
   })
 }
+// 皮肤：body 类名驱动（default → 无 skin- 类）
+function applySkin(skin) {
+  document.body.classList.remove('skin-violet', 'skin-emerald', 'skin-amber')
+  if (skin && skin !== 'default') document.body.classList.add('skin-' + skin)
+}
+function setSegSkin(skin) {
+  document.querySelectorAll('#seg-skin .seg-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.skin === skin)
+  })
+}
 
 // ---------------- 缩放 ----------------
 function applyZoom(z) {
@@ -143,6 +153,7 @@ async function openSettings() {
   $('input-dsh-port').value = settings.dsh?.port ?? 8080
   $('input-dsh-repo').value = settings.dsh?.sourceRepo ?? ''
   setDshMode(settings.dsh?.mode ?? 'external')
+  setSegSkin(settings.skin)
   // 同步服务状态
   renderDshState(lastDsh)
   desktop.getDshStatus().then(renderDshState).catch(() => {})
@@ -216,6 +227,7 @@ async function saveSettings() {
     return
   }
   const activeTheme = document.querySelector('#seg-theme .seg-btn.active')?.dataset.theme ?? 'system'
+  const activeSkin = document.querySelector('#seg-skin .seg-btn.active')?.dataset.skin ?? 'default'
   const next = {
     targetUrl: url,
     minimizeToTray: $('input-tray').checked,
@@ -223,6 +235,7 @@ async function saveSettings() {
     floatEnabled: $('input-float').checked,
     zoomFactor: Number($('input-zoom').value) / 100,
     theme: activeTheme,
+    skin: activeSkin,
   }
   // DSH 服务配置
   const activeDshMode = document.querySelector('#seg-dsh-mode .seg-btn.active')?.dataset.mode ?? 'external'
@@ -317,6 +330,7 @@ async function init() {
   $('app-version').textContent = settings.version
   offlineUrl.textContent = settings.targetUrl
   applyTheme(settings.dark)
+  applySkin(settings.skin)
   setSegTheme(settings.theme)
   applyZoom(settings.zoomFactor)
 
@@ -326,6 +340,15 @@ async function init() {
     b.addEventListener('click', () => {
       document.querySelectorAll('#seg-theme .seg-btn').forEach((x) => x.classList.remove('active'))
       b.classList.add('active')
+    })
+  })
+
+  // 皮肤切换（即时预览，保存后持久化）
+  document.querySelectorAll('#seg-skin .seg-btn').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#seg-skin .seg-btn').forEach((x) => x.classList.remove('active'))
+      b.classList.add('active')
+      applySkin(b.dataset.skin)
     })
   })
 
@@ -406,6 +429,8 @@ async function init() {
     $('input-tray').checked = true
     $('input-login').checked = false
     setSegTheme('system')
+    setSegSkin('default')
+    applySkin('default')
     toast('已恢复默认，点击「完成」保存')
   })
   $('btn-settings-close').addEventListener('click', closeSettings)

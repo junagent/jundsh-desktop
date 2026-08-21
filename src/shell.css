@@ -60,7 +60,36 @@
   --line-strong: hsla(0, 0%, 100%, 0.14);
   --nav-hover: hsla(0, 0%, 100%, 0.07);
   --titlebar-h: 42px;
+  /* 皮肤主题色（token 化，社区参考：Cherry token 体系 / LM Studio 曲率 / LobeChat 低饱和霓虹） */
+  --accent: #679efe;              /* 主色 */
+  --accent-soft: #a8c6ff;         /* 浅色高光 */
+  --accent-mid: #2d5f9e;          /* 中阶 */
+  --accent-deep: #1a3870;         /* 深蓝/底色 */
+  --accent-light: #4a8ac4;        /* 亮 */
+  --accent-glow: rgba(110, 158, 254, 0.35); /* 泛光 */
 }
+
+/* ========== 皮肤（可在设置切换，覆盖 accent 家族 + 兼容性别名即全局生效） ========== */
+/* 皮肤：极光紫（社区常见 AI 客户端低饱和霓虹参考） */
+body.skin-violet {
+  --accent: #a78bfa; --accent-soft: #c4b5fd; --accent-mid: #7c3aed;
+  --accent-deep: #2e1065; --accent-light: #8b5cf6; --accent-glow: rgba(167, 139, 250, 0.35);
+  --ds-blue: #a78bfa; --ds-blue-mid: #7c3aed; --ds-blue-deep: #2e1065; --ds-blue-light: #8b5cf6; --ds-glow: rgba(167, 139, 250, 0.35);
+}
+/* 皮肤：翡翠（沉稳高级感） */
+body.skin-emerald {
+  --accent: #34d399; --accent-soft: #a7f3d0; --accent-mid: #059669;
+  --accent-deep: #064e3b; --accent-light: #10b981; --accent-glow: rgba(52, 211, 153, 0.35);
+  --ds-blue: #34d399; --ds-blue-mid: #059669; --ds-blue-deep: #064e3b; --ds-blue-light: #10b981; --ds-glow: rgba(52, 211, 153, 0.35);
+}
+/* 皮肤：暖阳琥珀 */
+body.skin-amber {
+  --accent: #fbbf24; --accent-soft: #fde68a; --accent-mid: #d97706;
+  --accent-deep: #78350f; --accent-light: #f59e0b; --accent-glow: rgba(251, 191, 36, 0.32);
+  --ds-blue: #fbbf24; --ds-blue-mid: #d97706; --ds-blue-deep: #78350f; --ds-blue-light: #f59e0b; --ds-glow: rgba(251, 191, 36, 0.32);
+}
+/* 皮肤：石墨蓝（默认，纯深蓝克制风） */
+body.skin-graphite {}
 
 /* 浅色外观（跟随 GUI/系统） */
 body.light {
