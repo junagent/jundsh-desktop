@@ -78,6 +78,10 @@ function route(id) {
 // ---------- 状态 ----------
 function applyStatus(s) {
   if (!s) return
+  // 光效状态类：在线=蓝 / 托管尝试中=琥珀 / 离线=灰红
+  whale.className = s.alive
+    ? 'online'
+    : (s.mode !== 'external' && s.managed ? 'connecting' : 'offline')
   const dot = menuInner.querySelector('[data-status-dot]')
   const label = menuInner.querySelector('.grow')
   if (!dot || !label) return

@@ -33,6 +33,36 @@
     animation: floaty 4s ease-in-out infinite;
     transition: width 0.22s ease, height 0.22s ease;
   }
+  /* ---- 连接状态光效（由 float.js 按 dsh-svc 状态切换类） ---- */
+  /* 在线：品牌蓝光呼吸 */
+  #whale.online {
+    animation: floaty 4s ease-in-out infinite, breathe 3s ease-in-out infinite;
+    filter:
+      drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42))
+      drop-shadow(0 0 26px rgba(103, 158, 254, 0.6));
+  }
+  /* 连接中/尝试中：琥珀黄脉冲 */
+  #whale.connecting {
+    animation: floaty 4s ease-in-out infinite, pulse-glow 1.1s ease-in-out infinite;
+    filter:
+      drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42))
+      drop-shadow(0 0 22px rgba(254, 188, 46, 0.55));
+  }
+  /* 离线：灰红光微弱提示，不刺眼 */
+  #whale.offline {
+    animation: floaty 4s ease-in-out infinite, pulse-glow 2.4s ease-in-out infinite;
+    filter:
+      drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42))
+      drop-shadow(0 0 14px rgba(160, 82, 78, 0.4));
+  }
+  @keyframes breathe {
+    0%, 100% { filter: drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42)) drop-shadow(0 0 14px rgba(103, 158, 254, 0.3)); }
+    50% { filter: drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42)) drop-shadow(0 0 34px rgba(103, 158, 254, 0.75)); }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.72; }
+  }
   /* 贴边吸附时的收起态 */
   html.snapped #whale { width: 34px; height: 34px; }
   html.snapped:not(:hover) #whale-shell { cursor: pointer; }

@@ -26,6 +26,7 @@ let settings = null
 let saveTimer = null // 设置防抖写入定时器
 let dshSvc = null // DSH 服务管理器
 let termChild = null // 内置终端子进程
+let lastUpdateToastPct = null // 更新进度 toast 节流记忆
 
 const buildDir = (...p) => path.join(__dirname, '..', 'build', ...p)
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
@@ -75,10 +76,16 @@ function defaultFloatPos() {
   return { x: workArea.x + workArea.width - 24 - 128, y: workArea.y + workArea.height - 96 - 128 }
 }
 
-// DSH 服务管理器：把最新状态推给外壳与悬浮窗
+// DSH 服务管理器：把最新状态推给外壳与悬浮窗；状态行变化时同步托盘菜单
+let lastTrayState = null
 function pushDshStatus(state) {
   mainWindow?.webContents.send('dsh:status', state)
   if (floatWindow && !floatWindow.isDestroyed()) floatWindow.webContents.send('dsh:status', state)
+  // 托盘仅在有状态变化且菜单已建时刷新（避免每次探测重建菜单）
+  if (tray && JSON.stringify(lastTrayState) !== JSON.stringify(state)) {
+    lastTrayState = { alive: state.alive, port: state.port, lastError: state.lastError || null }
+    refreshTrayMenu()
+  }
 }
 function requireDshSvc() {
   if (dshSvc) return dshSvc
@@ -526,15 +533,23 @@ function setupAutoUpdate() {
   })
   autoUpdater.on('update-available', (info) => {
     console.log('[jundsh] 发现新版本:', info.version)
+    lastUpdateToastPct = null
   })
   autoUpdater.on('update-not-available', (info) => {
     console.log('[jundsh] 当前已是最新版本', info.version)
   })
   autoUpdater.on('download-progress', (p) => {
     console.log(`[jundsh] 下载更新 ${Math.round(p.percent)}%`)
+    // 节流：仅整 +5% 或首次提示 toast，避免高频刷屏
+    const pct = Math.round(p.percent)
+    if (pct >= 5 && (pct % 5 === 0 || !lastUpdateToastPct)) {
+      lastUpdateToastPct = pct
+      mainWindow?.webContents.send('app:toast', `正在下载更新 ${pct}%…`)
+    }
   })
   autoUpdater.on('update-downloaded', (info) => {
     console.log('[jundsh] 更新已下载:', info.version)
+    lastUpdateToastPct = null
     notifyUpdateReady(info.version)
   })
   autoUpdater.on('error', (err) => {
@@ -566,6 +581,14 @@ function notifyUpdateReady(version) {
   mainWindow?.webContents.send('app:toast', `更新 v${version} 已下载，重启后生效`)
 }
 
+// 托盘状态行用短时长格式化（跟 shell fmtDuration 类似，独立小函数避免依赖）
+function fmtTray(sec) {
+  sec = Math.max(0, Math.floor(sec))
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60)
+  if (h > 0) return `${h}h${String(m).padStart(2, '0')}m`
+  return `${m}m${String(sec % 60).padStart(2, '0')}s`
+}
+
 function createTray() {
   const icon = nativeImage.createFromPath(buildDir('tray.png'))
   tray = new Tray(icon)
@@ -577,9 +600,17 @@ function createTray() {
 // 重建托盘菜单（悬浮开关状态变化后刷新，保证托盘与设置/悬浮窗一致）
 function refreshTrayMenu() {
   if (!tray) return
+  // 当前连接状态行（只读；由 pushDshStatus 在状态变化时刷新）
+  const st = dshSvc ? dshSvc.getState() : null
+  const statusLabel = st
+    ? (st.alive
+      ? `● DSH 在线 · ${st.port}${st.uptimeSec ? ' · ' + fmtTray(st.uptimeSec) : ''}`
+      : `○ DSH 离线 · ${st.port}${st.lastError ? ' · ' + st.lastError : ''}`)
+    : '● DSH 连接中…'
   const menu = Menu.buildFromTemplate([
     { label: '显示主界面', click: showMainWindow },
     { type: 'separator' },
+    { label: statusLabel, enabled: false, icon: undefined },
     { label: '刷新页面', click: () => mainWindow?.webContents.send('app:command', 'reload') },
     {
       label: '桌面悬浮鲸鱼',
@@ -738,7 +769,7 @@ function registerIpc() {
     return await svc.restart({ force: true })
   }))
   // ---- 环境诊断 ----
-  ipcMain.handle('diag:collect', guard(() => diag.collect(settings, {
+  ipcMain.handle('diag:collect', guard(async () => diag.collect(settings, {
     appVersion: app.getVersion(),
     appName: APP_NAME,
     targetUrl: settings.targetUrl,
