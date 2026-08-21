@@ -335,11 +335,13 @@ async function toggleTerm(forceOpen) {
     termOpen = false
     termStatus.textContent = '已关闭'
     $('btn-term').classList.remove('active')
+    document.body.classList.remove('term-visible')
     return
   }
   termBox.classList.remove('hidden')
   termOpen = true
   $('btn-term').classList.add('active')
+  document.body.classList.add('term-visible')
   termStatus.textContent = '连接中…'
   try {
     const r = await desktop.termOpen()

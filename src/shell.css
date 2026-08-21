@@ -676,6 +676,8 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
   text-overflow: ellipsis;
 }
 .toast.show { opacity: 1; transform: translateX(-50%); }
+/* 终端抽屉打开时 toast 上移，避免被遮挡 */
+body.term-visible .toast { bottom: 226px; }
 
 /* 滚动条（设置弹窗内） */
 ::-webkit-scrollbar { width: 8px; }
