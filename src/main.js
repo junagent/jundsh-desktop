@@ -429,15 +429,30 @@ function createFloatWindow() {
         if (floatWindow && !floatWindow.isDestroyed() && floatWindow.isVisible()) {
           const img = await floatWindow.webContents.capturePage()
           fs.writeFileSync(path.join(dir, 'float.png'), img.toPNG())
-          const dom = await floatWindow.webContents.executeJavaScript(`(() => {
-            const whale = document.getElementById('whale');
-            const shell = document.getElementById('whale-shell');
-            return {
-              shellDrag: shell ? getComputedStyle(shell).webkitAppRegion || 'none' : null,
-              whaleSrc: whale ? whale.getAttribute('src') : null,
+          const dom = await floatWindow.webContents.executeJavaScript(`(async () => {
+            const whaleEl = document.getElementById('whale');
+            const shellEl = document.getElementById('whale-shell');
+            const base = {
+              whaleSrc: whaleEl ? whaleEl.getAttribute('src') : null,
+              cursor: shellEl ? getComputedStyle(shellEl).cursor : null,
               menuItems: document.querySelectorAll('#menu-inner .mi').length,
-              floaty: whale ? getComputedStyle(whale).animationName : null,
+              floaty: whaleEl ? getComputedStyle(whaleEl).animationName : null,
+              snapped: document.documentElement.classList.contains('snapped'),
             };
+            // 主题：切到系统 dark 场景无法合成，这里验证内置 applyTheme 分支可用
+            let theme = null;
+            try { theme = await window.float.getTheme(); } catch (e) { theme = 'err:' + e; }
+            // 拖动模拟：mousedown -> mousemove(>阈值) -> mouseup，应触发 setPos 无异常
+            let dragRes = 'not-run';
+            try {
+              const s = shellEl;
+              const w = window;
+              s.dispatchEvent(new MouseEvent('mousedown', { button: 0, screenX: 10, screenY: 10, bubbles: true }));
+              w.dispatchEvent(new MouseEvent('mousemove', { screenX: 80, screenY: 40, bubbles: true }));
+              w.dispatchEvent(new MouseEvent('mouseup', { screenX: 80, screenY: 40, bubbles: true }));
+              dragRes = 'ok';
+            } catch (e) { dragRes = 'err:' + e; }
+            return Object.assign({ theme, dragRes }, base);
           })()`)
           console.log('[jundsh:debug] FLOAT DOM:', JSON.stringify(dom))
         } else {
@@ -529,6 +544,22 @@ function createTray() {
     { label: '显示主界面', click: showMainWindow },
     { type: 'separator' },
     { label: '刷新页面', click: () => mainWindow?.webContents.send('app:command', 'reload') },
+    {
+      label: '桌面悬浮鲸鱼',
+      type: 'checkbox',
+      checked: settings.floatEnabled !== false,
+      click: (item) => {
+        settings.floatEnabled = item.checked
+        saveSettings(true)
+        if (item.checked) {
+          if (!floatWindow || floatWindow.isDestroyed()) createFloatWindow()
+          else if (!floatWindow.isVisible()) floatWindow.show()
+        } else if (floatWindow && !floatWindow.isDestroyed()) {
+          floatWindow.close()
+          floatWindow = null
+        }
+      },
+    },
     { label: '设置…', click: () => mainWindow?.webContents.send('app:command', 'open-settings') },
     { label: '检查更新…', click: () => {
       if (!app.isPackaged) { mainWindow?.webContents.send('app:toast', '开发模式不检查更新'); return }
@@ -709,6 +740,34 @@ function registerIpc() {
   ipcMain.on('float:hide-self', () => {
     floatWindow?.hide()
   })
+  // 拖拽位置（悬浮窗手动拖动时，经 IPC 移动并持久化）
+  ipcMain.handle('float:set-pos', (_e, x, y) => {
+    if (!floatWindow || floatWindow.isDestroyed()) return { ok: false }
+    const px = Math.round(Number(x))
+    const py = Math.round(Number(y))
+    if (!Number.isFinite(px) || !Number.isFinite(py)) return { ok: false }
+    floatWindow.setPosition(px, py)
+    settings.floatBounds = { x: px, y: py }
+    saveSettings()
+    return { ok: true }
+  })
+  ipcMain.handle('float:get-pos', () => {
+    if (!floatWindow || floatWindow.isDestroyed()) return null
+    const [x, y] = floatWindow.getPosition()
+    return { x, y }
+  })
+  // 悬浮窗工作区（吸附计算用，以悬浮窗自身所在显示器为准）
+  ipcMain.handle('float:get-workarea', () => {
+    const anchor = (floatWindow && !floatWindow.isDestroyed()) ? floatWindow.getPosition() : [0, 0]
+    const { workArea } = screen.getDisplayNearestPoint({ x: anchor[0], y: anchor[1] })
+    return { x: workArea.x, y: workArea.y, width: workArea.width, height: workArea.height }
+  })
+  ipcMain.handle('float:get-theme', () => nativeTheme.shouldUseDarkColors)
+}
+
+// 主题变化也通知悬浮窗（黑/白鲸鱼切换）
+function pushFloatTheme(dark) {
+  if (floatWindow && !floatWindow.isDestroyed()) floatWindow.webContents.send('float:theme', dark)
 }
 
 function killTermChild() {
@@ -740,7 +799,9 @@ if (!gotLock) {
     loadSettings()
     applyTheme()
     nativeTheme.on('updated', () => {
-      mainWindow?.webContents.send('theme:changed', { dark: nativeTheme.shouldUseDarkColors })
+      const dark = nativeTheme.shouldUseDarkColors
+      mainWindow?.webContents.send('theme:changed', { dark })
+      pushFloatTheme(dark)
     })
     registerIpc()
     setupAutoUpdate()

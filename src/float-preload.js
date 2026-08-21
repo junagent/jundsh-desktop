@@ -12,6 +12,10 @@ contextBridge.exposeInMainWorld('float', {
   openSettings: () => ipcRenderer.send('float:open-settings'),
   quit: () => ipcRenderer.send('float:quit'),
   hideFloat: () => ipcRenderer.send('float:hide-self'),
-  // 拖拽结束保存位置
-  onMoved: (cb) => ipcRenderer.on('float:moved', () => cb()),
+  // 拖拽/吸附/主题
+  setPos: (x, y) => ipcRenderer.invoke('float:set-pos', x, y),
+  getPos: () => ipcRenderer.invoke('float:get-pos'),
+  getWorkArea: () => ipcRenderer.invoke('float:get-workarea'),
+  getTheme: () => ipcRenderer.invoke('float:get-theme'),
+  onTheme: (cb) => ipcRenderer.on('float:theme', (_e, dark) => cb(dark)),
 })

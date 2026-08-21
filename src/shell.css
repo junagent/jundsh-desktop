@@ -358,6 +358,9 @@ webview {
 }
 .offline-hint { font-size: 12px; color: var(--ds-blue); margin-bottom: 18px; min-height: 16px; }
 
+.offline-actions { display: flex; justify-content: center; gap: 10px; }
+.offline-actions .btn { min-width: 96px; }
+
 /* 按钮 */
 .btn {
   height: 34px; padding: 0 18px;

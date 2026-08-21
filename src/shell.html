@@ -76,7 +76,10 @@
           <p class="offline-desc">连接不上 DSH 服务</p>
           <p class="offline-url" id="offline-url"></p>
           <p class="offline-hint" id="offline-hint">5 秒后自动重试…</p>
-          <button class="btn primary" id="btn-retry">立即重试</button>
+          <div class="offline-actions">
+            <button class="btn primary" id="btn-retry">立即重试</button>
+            <button class="btn ghost" id="btn-offline-start-svc" title="尝试由客户端拉起 DSH 服务（需在设置中启用托管模式）">启动服务</button>
+          </div>
         </div>
       </div>
     </div>

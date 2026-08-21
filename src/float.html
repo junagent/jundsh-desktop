@@ -18,20 +18,24 @@
   #whale-shell {
     position: absolute; inset: 0;
     display: grid; place-items: center;
-    -webkit-app-region: drag; /* 整窗可拖动 */
+    /* 手动拖动经 IPC 实现，不设 -webkit-app-region: drag，保证 click/dblclick 可用 */
     cursor: grab;
   }
-  #whale-shell:active { cursor: grabbing; }
+  #whale-shell.dragging { cursor: grabbing; }
 
   /* 鲸鱼：悬空视觉 = 柔和投影 + 泛光，深色桌面也清晰 */
   #whale {
-    width: 128px; height: 128px;
+    width: 116px; height: 116px;
     pointer-events: none;
     filter:
       drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42))
       drop-shadow(0 0 22px rgba(103, 158, 254, 0.28));
     animation: floaty 4s ease-in-out infinite;
+    transition: width 0.22s ease, height 0.22s ease;
   }
+  /* 贴边吸附时的收起态 */
+  html.snapped #whale { width: 34px; height: 34px; }
+  html.snapped:not(:hover) #whale-shell { cursor: pointer; }
   @keyframes floaty {
     0%, 100% { transform: translateY(0) rotate(-2deg); }
     50% { transform: translateY(-7px) rotate(2deg); }

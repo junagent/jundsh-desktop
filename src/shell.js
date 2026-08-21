@@ -456,6 +456,21 @@ async function init() {
 
   // 离线重试
   $('btn-retry').addEventListener('click', () => { offlineHint.textContent = '正在重新连接…'; gui.reload() })
+  // 离线页：尝试启动服务（托管模式下由客户端拉起；外部模式给出提示后进设置）
+  $('btn-offline-start-svc').addEventListener('click', async () => {
+    const cur = await desktop.getSettings().catch(() => null)
+    const mode = cur?.dsh?.mode ?? 'external'
+    if (mode === 'external') {
+      toast('外部模式：请先在设置中启用「托管·Profile/源码」')
+      openSettings()
+      return
+    }
+    offlineHint.textContent = '正在启动 DSH 服务…'
+    const r = await desktop.startDsh().catch(() => ({ state: null }))
+    offlineHint.textContent = r?.ok ? '服务已启动，正在连接…' : (r?.state?.lastError || '启动未完成，请查看设置中的服务状态')
+    renderDshState(r?.state)
+    if (r?.ok) gui.reload()
+  })
 
   // 键盘
   document.addEventListener('keydown', (e) => {
