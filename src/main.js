@@ -1,7 +1,7 @@
 // JUNDSH · DSH 桌面端 — 主进程
 'use strict'
 
-const { app, BrowserWindow, Tray, Menu, ipcMain, shell, session, nativeImage, nativeTheme, screen, webContents, Notification } = require('electron')
+const { app, BrowserWindow, Tray, Menu, ipcMain, shell, session, nativeImage, nativeTheme, screen, webContents, Notification, crashReporter, dialog } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const { execFileSync } = require('node:child_process')
 const path = require('node:path')
@@ -10,6 +10,8 @@ const os = require('node:os')
 const { spawn } = require('node:child_process')
 const { DshService } = require('./dsh-svc')
 const diag = require('./diag')
+const debugHarness = require('./debug-harness')
+const Schema = require('./settings-schema')
 
 const APP_NAME = 'JUNDSH'
 const DEFAULT_URL = 'http://127.0.0.1:8080'
@@ -28,6 +30,12 @@ let dshSvc = null // DSH 服务管理器
 let termChild = null // 内置终端子进程
 let lastUpdateToastPct = null // 更新进度 toast 节流记忆
 
+// 崩溃转储：仅本地保留（不外传），路径会出现在「环境诊断」报告中
+// 必须在 app ready 之前启动才能覆盖启动期崩溃
+try {
+  crashReporter.start({ companyName: 'JUNDSH', uploadToServer: false })
+} catch { /* 平台不支持或重复启动时忽略 */ }
+
 const buildDir = (...p) => path.join(__dirname, '..', 'build', ...p)
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
 
@@ -39,20 +47,18 @@ function loadSettings() {
     settings = {}
     migrateSettings()
   }
-  settings.targetUrl = typeof settings.targetUrl === 'string' && /^https?:\/\/\S+$/i.test(settings.targetUrl)
-    ? settings.targetUrl
-    : DEFAULT_URL
+  // 字段规范化统一走 src/settings-schema.js（单一事实源）
+  settings.targetUrl = Schema.isValidHttpUrl(settings.targetUrl) ? settings.targetUrl : DEFAULT_URL
   settings.minimizeToTray = settings.minimizeToTray !== false
-  settings.zoomFactor = Math.min(2, Math.max(0.5, Number(settings.zoomFactor) || 1))
-  settings.theme = ['system', 'light', 'dark'].includes(settings.theme) ? settings.theme : 'system'
+  settings.zoomFactor = Schema.clampZoom(settings.zoomFactor)
+  settings.theme = Schema.normalizeTheme(settings.theme)
   // v1.4 迁移：旧默认键 'default'（石墨蓝）→ 深海 ABYSS；未知值回退 abyss
-  if (settings.skin === 'default' || settings.skin == null) settings.skin = 'abyss'
-  settings.skin = ['abyss', 'graphite', 'violet', 'emerald', 'amber'].includes(settings.skin) ? settings.skin : 'abyss'
+  settings.skin = Schema.normalizeSkin(settings.skin)
   settings.bounds = sanitizeBounds(settings.bounds)
   // DSH 服务管理配置（默认外部模式，完全向后兼容）
   settings.dsh = {
-    mode: ['external', 'profile', 'source'].includes(settings.dsh?.mode) ? settings.dsh.mode : 'external',
-    port: Math.min(65535, Math.max(1, parseInt(settings.dsh?.port, 10) || 8080)) || 8080,
+    mode: Schema.normalizeDshMode(settings.dsh?.mode),
+    port: Schema.clampPort(settings.dsh?.port, 8080),
     sourceRepo: typeof settings.dsh?.sourceRepo === 'string' && settings.dsh.sourceRepo
       ? settings.dsh.sourceRepo
       : path.join(os.homedir(), 'deepseek-harness'),
@@ -312,100 +318,10 @@ function createMainWindow() {
     })
   })
 
-  // 调试截图
+  // 调试截图/探针（DSH_DESKTOP_SHOT）：实现已移至 src/debug-harness.js
   if (DEBUG_SHOT) {
-    setTimeout(async () => {
-      try {
-        const dir = path.join(app.getPath('userData'), 'screenshots')
-        fs.mkdirSync(dir, { recursive: true })
-        if (splashWindow && !splashWindow.isDestroyed()) {
-          fs.writeFileSync(path.join(dir, 'splash.png'), (await splashWindow.webContents.capturePage()).toPNG())
-        }
-      } catch (err) {
-        console.error('[jundsh] 启动页截图失败:', err)
-      }
-    }, 1600)
-    setTimeout(async () => {
-      try {
-        const dir = path.join(app.getPath('userData'), 'screenshots')
-        fs.mkdirSync(dir, { recursive: true })
-        if (process.env.DSH_DESKTOP_SHOT === 'modal') {
-          await mainWindow.webContents.executeJavaScript(`document.getElementById('btn-settings').click()`)
-          await new Promise((r) => setTimeout(r, 400))
-        }
-        const img = await mainWindow.webContents.capturePage()
-        fs.writeFileSync(path.join(dir, 'shell.png'), img.toPNG())
-        const dom = await mainWindow.webContents.executeJavaScript(`(async () => {
-          const q = (s) => document.querySelector(s);
-          const imgs = [...document.querySelectorAll('img')].map((im) => ({ cls: im.className, w: im.naturalWidth, src: im.getAttribute('src') }));
-          let diagSummary = null;
-          try {
-            const dr = await window.desktop.getDiag();
-            diagSummary = { issues: dr.issues, head: dr.report.split('\\n').slice(0, 4) };
-          } catch (e) { diagSummary = { err: String(e) }; }
-          // 终端 + 皮肤冒烟（走真实 UI）
-          let termSummary = null;
-          let skinSummary = null;
-          try {
-            const before = { hidden: q('#term').classList.contains('hidden'), status: q('#term-status')?.textContent };
-            q('#btn-term').click();
-            await new Promise((r) => setTimeout(r, 300));
-            const mid = { hidden: q('#term').classList.contains('hidden'), status: q('#term-status')?.textContent };
-            await new Promise((r) => setTimeout(r, 1500));
-            const shown = q('#term') && !q('#term').classList.contains('hidden');
-            const status = q('#term-status')?.textContent;
-            const input = q('#term-in');
-            let histRes = null;
-            if (input) {
-              input.value = 'Write-Output JUNDSH_TERM_E2E';
-              input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-              // 命令历史：Enter 后按 ↑ 应恢复上一条命令
-              await new Promise((r) => setTimeout(r, 120));
-              input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
-              await new Promise((r) => setTimeout(r, 120));
-              histRes = input.value;
-            }
-            await new Promise((r) => setTimeout(r, 1500));
-            const outTail = (q('#term-out')?.textContent || '').slice(-300);
-            const finalStatus = q('#term-status')?.textContent;
-            q('#btn-term-close').click();
-            termSummary = { before, mid, shown, status, finalStatus, echoed: outTail.includes('JUNDSH_TERM_E2E'), hist: histRes };
-            // 皮肤冒烟：切到极光紫，验证 body.skin-violet 生效，然后还原默认
-            const skinBtn = q('#seg-skin .seg-btn[data-skin="violet"]');
-            skinBtn?.click();
-            await new Promise((r) => setTimeout(r, 120));
-            skinSummary = {
-              hasClass: document.body.classList.contains('skin-violet'),
-              active: q('#seg-skin .seg-btn.active')?.dataset.skin,
-            };
-            const dft = q('#seg-skin .seg-btn[data-skin="abyss"]');
-            dft?.click();
-          } catch (e) {
-            termSummary = termSummary || { err: String(e), stack: String(e && e.stack).slice(0, 300) };
-            skinSummary = skinSummary || { err: String(e) };
-          }
-          return {
-            veilHidden: q('#veil')?.classList.contains('hidden'),
-            offlineHidden: q('#offline')?.classList.contains('hidden'),
-            pillClass: q('#status-pill')?.className,
-            pillText: q('#status-text')?.textContent,
-            pillInfo: q('#pill-info')?.textContent,
-            dshStatusLine: q('#dsh-status-line')?.textContent,
-            dshModeActive: q('#seg-dsh-mode .seg-btn.active')?.dataset.mode,
-            bodyLight: document.body.classList.contains('light'),
-            guiSrc: q('#gui')?.getAttribute('src'),
-            imgs,
-            diagSummary,
-            termSummary,
-            skinSummary,
-          };
-        })()`)
-        console.log('[jundsh:debug] DOM:', JSON.stringify(dom))
-      } catch (err) {
-        console.error('[jundsh] 截图失败:', err)
-      }
-      setTimeout(() => app.exit(0), 400)
-    }, 7000)
+    debugHarness.scheduleSplashShot(splashWindow)
+    debugHarness.scheduleShellProbe(mainWindow)
   }
 }
 
@@ -414,6 +330,27 @@ function showMainWindow() {
   if (mainWindow.isMinimized()) mainWindow.restore()
   if (!mainWindow.isVisible()) mainWindow.show()
   mainWindow.focus()
+}
+
+// ---------------- 便携版迁移引导 ----------------
+// electron-builder portable 运行时解压到临时目录，无法自动更新；
+// 首次运行一次性提示用户迁移到安装版（设置记忆，不打扰）
+function maybePortableNudge() {
+  if (!IS_PORTABLE || !mainWindow || settings.portableNudgeShown) return
+  settings.portableNudgeShown = true
+  saveSettings(true)
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'JUNDSH 便携版',
+    message: '你正在使用 JUNDSH 便携版',
+    detail: '便携版不支持自动更新。建议下载安装版，获得自动更新与更完整的系统集成体验。',
+    buttons: ['前往下载安装版', '继续使用便携版'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+  }).then(({ response }) => {
+    if (response === 0) shell.openExternal('https://github.com/junagent/jundsh-desktop/releases/latest')
+  }).catch(() => { /* 对话框被取消 */ })
 }
 
 // ---------------- 桌面悬浮鲸鱼 ----------------
@@ -444,58 +381,9 @@ function createFloatWindow() {
   })
   floatWindow.setAlwaysOnTop(true, 'floating')
   floatWindow.loadFile(path.join(__dirname, 'float.html'))
+  // 调试探针（DSH_DESKTOP_SHOT=float）：实现已移至 src/debug-harness.js
   if (process.env.DSH_DESKTOP_SHOT === 'float') {
-    console.log('[jundsh:debug] FLOAT mode: window created', !!floatWindow)
-    setTimeout(async () => {
-      try {
-        const dir = path.join(app.getPath('userData'), 'screenshots')
-        fs.mkdirSync(dir, { recursive: true })
-        await new Promise((r) => setTimeout(r, 600))
-        console.log('[jundsh:debug] FLOAT visible?', !!(floatWindow && !floatWindow.isDestroyed() && floatWindow.isVisible()))
-        if (floatWindow && !floatWindow.isDestroyed() && floatWindow.isVisible()) {
-          const img = await floatWindow.webContents.capturePage()
-          fs.writeFileSync(path.join(dir, 'float.png'), img.toPNG())
-          const dom = await floatWindow.webContents.executeJavaScript(`(async () => {
-            const whaleEl = document.getElementById('whale');
-            const shellEl = document.getElementById('whale-shell');
-            const base = {
-              whaleSrc: whaleEl ? whaleEl.getAttribute('src') : null,
-              cursor: shellEl ? getComputedStyle(shellEl).cursor : null,
-              menuItems: document.querySelectorAll('#menu-inner .mi').length,
-              floaty: whaleEl ? getComputedStyle(whaleEl).animationName : null,
-              snapped: document.documentElement.classList.contains('snapped'),
-            };
-            let snapMem = null;
-            try { snapMem = await window.float.getSnap(); } catch (e) { snapMem = 'err:' + e; }
-            let wa2 = null;
-            try { wa2 = await window.float.getWorkArea(); } catch (e) { wa2 = 'err:' + e; }
-            base.snapMem = snapMem;
-            base.workArea = wa2 && wa2.width ? wa2.width + 'x' + wa2.height : wa2;
-            // 主题：切到系统 dark 场景无法合成，这里验证内置 applyTheme 分支可用
-            let theme = null;
-            try { theme = await window.float.getTheme(); } catch (e) { theme = 'err:' + e; }
-            // 拖动模拟：mousedown -> mousemove(>阈值) -> mouseup，应触发 setPos 无异常
-            let dragRes = 'not-run';
-            try {
-              const s = shellEl;
-              const w = window;
-              s.dispatchEvent(new MouseEvent('mousedown', { button: 0, screenX: 10, screenY: 10, bubbles: true }));
-              w.dispatchEvent(new MouseEvent('mousemove', { screenX: 80, screenY: 40, bubbles: true }));
-              w.dispatchEvent(new MouseEvent('mouseup', { screenX: 80, screenY: 40, bubbles: true }));
-              dragRes = 'ok';
-            } catch (e) { dragRes = 'err:' + e; }
-            return Object.assign({ theme, dragRes }, base);
-          })()`)
-          console.log('[jundsh:debug] FLOAT DOM:', JSON.stringify(dom))
-        } else {
-          console.log('[jundsh:debug] FLOAT DOM: not visible/created')
-        }
-      } catch (err) {
-        console.error('[jundsh] 悬浮窗截图失败:', err && err.message)
-      }
-      console.log('[jundsh:debug] FLOAT exit')
-      setTimeout(() => app.exit(0), 300)
-    }, 1200)
+    debugHarness.scheduleFloatProbe(floatWindow)
     return floatWindow
   }
   floatWindow.on('moved', () => {
@@ -687,21 +575,20 @@ function registerIpc() {
   })))
   ipcMain.handle('app:set-settings', guard((_e, patch) => {
     if (patch && typeof patch === 'object') {
-      if (typeof patch.targetUrl === 'string') {
-        const url = patch.targetUrl.trim()
-        if (/^https?:\/\/\S+$/i.test(url)) settings.targetUrl = url
+      if (Schema.isValidHttpUrl(typeof patch.targetUrl === 'string' ? patch.targetUrl.trim() : '')) {
+        settings.targetUrl = patch.targetUrl.trim()
       }
       if (typeof patch.minimizeToTray === 'boolean') settings.minimizeToTray = patch.minimizeToTray
       if (typeof patch.zoomFactor === 'number') {
-        settings.zoomFactor = Math.min(2, Math.max(0.5, patch.zoomFactor))
+        settings.zoomFactor = Schema.clampZoom(patch.zoomFactor)
       }
-      if (['system', 'light', 'dark'].includes(patch.theme)) {
+      if (Schema.THEMES.includes(patch.theme)) {
         settings.theme = patch.theme
         applyTheme()
       }
-      if (['abyss', 'graphite', 'violet', 'emerald', 'amber', 'default'].includes(patch.skin)) {
-        // 兼容旧键：'default' 视为 abyss
-        settings.skin = patch.skin === 'default' ? 'abyss' : patch.skin
+      if (Schema.isKnownSkin(patch.skin)) {
+        // 兼容旧键：'default' 视为 abyss（isKnownSkin 已识别别名）
+        settings.skin = Schema.normalizeSkin(patch.skin)
         if (floatWindow && !floatWindow.isDestroyed()) {
           floatWindow.webContents.send('float:persona', { dark: nativeTheme.shouldUseDarkColors, skin: settings.skin })
         }
@@ -712,12 +599,12 @@ function registerIpc() {
       }
       if (patch.dsh && typeof patch.dsh === 'object') {
         const next = { ...settings.dsh }
-        if (['external', 'profile', 'source'].includes(patch.dsh.mode)) {
+        if (Schema.DSH_MODES.includes(patch.dsh.mode)) {
           next.mode = patch.dsh.mode
           // 切换模式时同步端口默认值
-          if (typeof patch.dsh.port === 'number') next.port = Math.min(65535, Math.max(1, patch.dsh.port))
+          if (typeof patch.dsh.port === 'number') next.port = Schema.clampPort(patch.dsh.port)
         } else if (typeof patch.dsh.port === 'number') {
-          next.port = Math.min(65535, Math.max(1, patch.dsh.port))
+          next.port = Schema.clampPort(patch.dsh.port)
         }
         if (typeof patch.dsh.sourceRepo === 'string' && patch.dsh.sourceRepo) next.sourceRepo = patch.dsh.sourceRepo
         settings.dsh = next
@@ -911,6 +798,7 @@ if (!gotLock) {
     createMainWindow()
     // 桌面悬浮鲸鱼（调试截图模式下仅 float 模式创建以便验证；其余跳过避免干扰截图）
     if (!DEBUG_SHOT || process.env.DSH_DESKTOP_SHOT === 'float') createFloatWindow()
+    maybePortableNudge()
   })
 
   app.on('window-all-closed', () => {

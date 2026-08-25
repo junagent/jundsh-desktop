@@ -48,6 +48,8 @@
 npm install       # 安装依赖
 npm start         # 开发模式启动（连接 http://127.0.0.1:8080）
 npm run check     # 语法检查
+npm run lint      # ESLint 正确性检查（格式交给编辑器级 Prettier，可选）
+npm test          # 单元测试（node:test：原子渲染器 + 设置 Schema）
 npm run smoke     # DSH 服务管理冒烟（拉起 profile 服务 + 看门狗自愈）
 npm run icons     # 重新生成鲸鱼图标（读 assets/whale.svg）
 npm run branding  # 重新生成品牌宣传图（Electron 渲染）
@@ -56,6 +58,9 @@ npm run dist      # 打包 Windows 安装包 (NSIS + 便携版)
 
 > 开发模式下 DSH 服务默认 external：请先运行 `start-dsh-web.ps1` 启动 8080，
 > 或在外壳设置里切到「托管·Profile / 托管·源码」模式由客户端自动拉起。
+>
+> 每次 push / PR 会经 GitHub Actions CI 质量门禁（`check` + `lint` + `test`，
+> `.github/workflows/ci.yml`）；发布构建前也会再过同一道门禁。
 
 发布新版本（自动更新依赖 GitHub Release）：
 

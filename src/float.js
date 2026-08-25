@@ -22,8 +22,6 @@ const MENU_ITEMS = [
   { id: 'quit', label: '退出', danger: true },
 ]
 
-let menuOpen = false
-let snapEdge = null // 当前吸附边: 'left'|'right'|'top'|'bottom'|null
 let workArea = { x: 0, y: 0, width: 0, height: 0 }
 
 // ---------- 菜单构建 ----------
@@ -61,7 +59,6 @@ function buildMenu() {
 }
 
 function setMenu(open) {
-  menuOpen = open
   document.documentElement.classList.toggle('menu-open', open)
   menuInner.classList.toggle('hidden', !open)
 }
@@ -102,7 +99,6 @@ function fmt(sec) {
 }
 
 // ---------- 吸附与位置 ----------
-let workAreaDirty = false // 拖动中需要刷新 workArea 的标记（跨屏场景）
 let workAreaTimer = null
 // 按窗口当前（或给定锚点）位置刷新所在显示器 workArea，保证跨屏吸附正确
 function refreshWorkArea(anchor) {
@@ -151,7 +147,6 @@ function maybeSnap(x, y) {
 }
 
 function setSnapClass(edge) {
-  snapEdge = edge
   document.documentElement.classList.toggle('snapped', !!edge)
   // 记录吸附边供 CSS 定向（如右缘吸附时菜单向左展开）
   if (edge) document.documentElement.setAttribute('data-snap', edge)
@@ -256,8 +251,8 @@ function applyTheme(dark) {
 function applyPersona(p) {
   if (!p) return
   const html = document.documentElement
-  // abyss 为默认（无类）；'default' 是 v1.3 旧键，迁移为 abyss
-  const skin = p.skin === 'default' ? 'abyss' : p.skin
+  // abyss 为默认（无类）；'default' 是 v1.3 旧键 —— 规范化走共享 Schema（window.JSchema），缺失时本地兜底
+  const skin = window.JSchema ? window.JSchema.normalizeSkin(p.skin) : (p.skin === 'default' ? 'abyss' : p.skin)
   html.classList.remove('skin-graphite', 'skin-violet', 'skin-emerald', 'skin-amber')
   if (['graphite', 'violet', 'emerald', 'amber'].includes(skin)) html.classList.add('skin-' + skin)
   if (typeof p.dark === 'boolean') applyTheme(p.dark)

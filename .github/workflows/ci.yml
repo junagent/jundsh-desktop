@@ -1,0 +1,34 @@
+name: CI
+
+# 每次 push / PR 的快速质量门禁：语法 + Lint + 单测（秒级，不打包）
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # --ignore-scripts：跳过 electron 二进制下载与 sharp 原生构建，纯检查用不到
+      - name: Install dependencies (scripts skipped)
+        run: npm ci --ignore-scripts
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test

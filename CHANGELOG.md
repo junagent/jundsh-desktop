@@ -13,6 +13,15 @@
 - 启动页换装深海配色 + ASCII 菊花轮换 caption；窗口背景色同步深海底色（消除启动闪白）
 - `npm run check` 覆盖新增的 `atom.js` / `splash.js`
 
+**工程质量与可维护性（第十轮追加）**
+- **GitHub Actions CI 质量门禁**：新增 `.github/workflows/ci.yml`——每次 push / PR 跑语法检查 + ESLint + 单测（秒级，不打包）；打包发布工作流在构建前先过同一道门禁，坏提交进不了 Release
+- **ESLint 9 扁平配置**：只查正确性（未定义变量、不可达代码等），不掺格式意见——格式交给编辑器级 Prettier（`.prettierrc.json`，可选使用）；顺手清掉 float.js 三处未使用变量与 dsh-svc.js 死赋值
+- **单元测试落地**：`node:test` 内置测试器 + `tests/` 目录，15 例覆盖 ASCII 原子渲染器（画布尺寸恒定 / 首尾无缝循环 / 电子逐帧运动 / 渲染确定性 / 越界索引安全）与设置 Schema 全部规范化函数；`npm test` 一键运行
+- **设置 Schema 单一事实源 `src/settings-schema.js`**：皮肤/主题/DSH 模式白名单与 URL、缩放、端口的规范化收敛一处（UMD：主进程 `require`，外壳与悬浮窗挂 `window.JSchema`）——主进程 loadSettings、设置补丁校验、shell.js、float.js 四处重复实现全部删除，此后新增设置字段只改这一个文件
+- **调试探针模块化 `src/debug-harness.js`**：原 main.js 内 ~180 行截图 / DOM 探针代码独立成模块（`DSH_DESKTOP_SHOT=1/modal/float` 三种模式不变），只在调试路径加载，常规运行时零开销
+- **崩溃可见性**：主进程启动 crashReporter（转储仅本地留存，不上传）；「环境诊断」报告新增「崩溃转储」一行（目录 + 数量），用户反馈问题时可一键附上
+- **便携版迁移引导**：便携版（无法自动更新）首次运行一次性弹窗提示迁移到安装版，「前往下载」直达 Releases；设置记忆，只提醒一次
+
 ## v1.3.0 (2026-08-21)
 
 **新增：DSH 服务管理（v2 第一阶段落地）**

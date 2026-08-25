@@ -90,6 +90,20 @@ async function portDiagnosis(url, port) {
 
 // 采集诊断报告（异步）。settings: 主进程设置对象；opts: { appVersion, appName, targetUrl }
 // 性能：同一次采集内复用探测结果，避免重复启动子进程
+// 崩溃转储（本地）：存在历史 dump 说明发生过渲染/主进程崩溃；路径供用户反馈问题用
+function crashDumpsInfo() {
+  try {
+    const dir = require('electron').app.getPath('crashDumps')
+    let count = 0
+    try {
+      count = fs.readdirSync(dir).filter((f) => f.endsWith('.dmp')).length
+    } catch { /* 目录尚未创建 = 无崩溃记录 */ }
+    return count ? `${dir}（${count} 个）` : `${dir}（无记录）`
+  } catch {
+    return '不可用'
+  }
+}
+
 async function collect(settings, opts = {}) {
   const home = os.homedir()
   const profileRoot = path.join(home, '.dsh', 'profiles')
@@ -134,6 +148,7 @@ async function collect(settings, opts = {}) {
     ['Node.js', nodeVer],
     ['Electron', electronVer || '内置'],
     ['打包形态', opts.isPackaged ? '已安装/打包' : '开发模式'],
+    ['崩溃转储', crashDumpsInfo()],
     ['用户目录', home],
     ['DSH Profile 目录', profileRoot + (profileBinInfo.exists ? ' ✓' : ' ✗')],
     ['  → DSH Profile 版本', profileVersion || '未检测到'],

@@ -134,7 +134,6 @@ class DshService {
   // 显式启动托管服务（外部/托管模式通用：先探测，不通则拉起）
   async startManaged() {
     this.applyConfig()
-    const cfg = this.getSettings().dsh || {}
     this.state.managed = true
     this.state.lastError = null
     const url = this.targetUrl()

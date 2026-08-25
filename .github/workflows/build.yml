@@ -27,6 +27,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 打包前的快速质量门禁（语法 + Lint + 单测）
+      - name: Quality gate
+        run: |
+          npm run check
+          npm run lint
+          npm test
+
       - name: Build & publish
         run: npx electron-builder --win --publish always
         env:

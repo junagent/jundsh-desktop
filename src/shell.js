@@ -80,13 +80,8 @@ function setSegTheme(theme) {
     b.classList.toggle('active', b.dataset.theme === theme)
   })
 }
-// 皮肤：body 类名驱动（abyss 为默认 → 无 skin- 类；'default' 为 v1.3 旧键，迁移到 abyss）
-const SKIN_ALIASES = { default: 'abyss' }
-const KNOWN_SKINS = ['abyss', 'graphite', 'violet', 'emerald', 'amber']
-function normalizeSkin(skin) {
-  const s = SKIN_ALIASES[skin] || skin
-  return KNOWN_SKINS.includes(s) ? s : 'abyss'
-}
+// 皮肤规范化走共享 Schema（src/settings-schema.js → window.JSchema），缺失时本地兜底
+const normalizeSkin = (skin) => (window.JSchema ? window.JSchema.normalizeSkin(skin) : (skin === 'default' ? 'abyss' : skin))
 function applySkin(skin) {
   const s = normalizeSkin(skin)
   document.body.classList.remove('skin-graphite', 'skin-violet', 'skin-emerald', 'skin-amber')

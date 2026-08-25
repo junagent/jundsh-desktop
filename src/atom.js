@@ -117,7 +117,6 @@
   }
 
   var api = { frameCount: FRAME_COUNT, frame: frame, frames: frames, mount: mount }
-  /* global module */
   if (typeof module !== 'undefined' && module.exports) module.exports = api
   else global.JAtom = api
 })(typeof window !== 'undefined' ? window : globalThis)
