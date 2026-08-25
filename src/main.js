@@ -45,7 +45,9 @@ function loadSettings() {
   settings.minimizeToTray = settings.minimizeToTray !== false
   settings.zoomFactor = Math.min(2, Math.max(0.5, Number(settings.zoomFactor) || 1))
   settings.theme = ['system', 'light', 'dark'].includes(settings.theme) ? settings.theme : 'system'
-  settings.skin = ['default', 'violet', 'emerald', 'amber'].includes(settings.skin) ? settings.skin : 'default'
+  // v1.4 迁移：旧默认键 'default'（石墨蓝）→ 深海 ABYSS；未知值回退 abyss
+  if (settings.skin === 'default' || settings.skin == null) settings.skin = 'abyss'
+  settings.skin = ['abyss', 'graphite', 'violet', 'emerald', 'amber'].includes(settings.skin) ? settings.skin : 'abyss'
   settings.bounds = sanitizeBounds(settings.bounds)
   // DSH 服务管理配置（默认外部模式，完全向后兼容）
   settings.dsh = {
@@ -206,7 +208,7 @@ function createMainWindow() {
     minHeight: 600,
     title: APP_NAME,
     icon: buildDir('icon.png'),
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#101113' : '#f4f5f7',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#070d17' : '#f4f5f7',
     show: false,
     frame: false,
     titleBarStyle: 'hidden',
@@ -376,7 +378,7 @@ function createMainWindow() {
               hasClass: document.body.classList.contains('skin-violet'),
               active: q('#seg-skin .seg-btn.active')?.dataset.skin,
             };
-            const dft = q('#seg-skin .seg-btn[data-skin="default"]');
+            const dft = q('#seg-skin .seg-btn[data-skin="abyss"]');
             dft?.click();
           } catch (e) {
             termSummary = termSummary || { err: String(e), stack: String(e && e.stack).slice(0, 300) };
@@ -697,8 +699,9 @@ function registerIpc() {
         settings.theme = patch.theme
         applyTheme()
       }
-      if (['default', 'violet', 'emerald', 'amber'].includes(patch.skin)) {
-        settings.skin = patch.skin
+      if (['abyss', 'graphite', 'violet', 'emerald', 'amber', 'default'].includes(patch.skin)) {
+        // 兼容旧键：'default' 视为 abyss
+        settings.skin = patch.skin === 'default' ? 'abyss' : patch.skin
         if (floatWindow && !floatWindow.isDestroyed()) {
           floatWindow.webContents.send('float:persona', { dark: nativeTheme.shouldUseDarkColors, skin: settings.skin })
         }
@@ -851,7 +854,7 @@ function registerIpc() {
   // 外观信息：主题明暗 + 皮肤名（供悬浮窗菜单跟随 skin accent 协调）
   ipcMain.handle('float:get-persona', fguard(() => ({
     dark: nativeTheme.shouldUseDarkColors,
-    skin: settings.skin || 'default',
+    skin: settings.skin || 'abyss',
   })))
   // 皮肤变化时也通知悬浮窗
   ipcMain.handle('float:set-snap', fguard((_e, edge) => {

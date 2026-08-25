@@ -1,7 +1,7 @@
 // JUNDSH · DSH 桌面端 — 外壳逻辑
 'use strict'
 
-/* global desktop */
+/* global desktop, JAtom */
 const gui = document.getElementById('gui')
 
 let settings = null
@@ -80,10 +80,17 @@ function setSegTheme(theme) {
     b.classList.toggle('active', b.dataset.theme === theme)
   })
 }
-// 皮肤：body 类名驱动（default → 无 skin- 类）
+// 皮肤：body 类名驱动（abyss 为默认 → 无 skin- 类；'default' 为 v1.3 旧键，迁移到 abyss）
+const SKIN_ALIASES = { default: 'abyss' }
+const KNOWN_SKINS = ['abyss', 'graphite', 'violet', 'emerald', 'amber']
+function normalizeSkin(skin) {
+  const s = SKIN_ALIASES[skin] || skin
+  return KNOWN_SKINS.includes(s) ? s : 'abyss'
+}
 function applySkin(skin) {
-  document.body.classList.remove('skin-violet', 'skin-emerald', 'skin-amber')
-  if (skin && skin !== 'default') document.body.classList.add('skin-' + skin)
+  const s = normalizeSkin(skin)
+  document.body.classList.remove('skin-graphite', 'skin-violet', 'skin-emerald', 'skin-amber')
+  if (s !== 'abyss') document.body.classList.add('skin-' + s)
 }
 function setSegSkin(skin) {
   document.querySelectorAll('#seg-skin .seg-btn').forEach((b) => {
@@ -233,7 +240,7 @@ async function saveSettings() {
     return
   }
   const activeTheme = document.querySelector('#seg-theme .seg-btn.active')?.dataset.theme ?? 'system'
-  const activeSkin = document.querySelector('#seg-skin .seg-btn.active')?.dataset.skin ?? 'default'
+  const activeSkin = normalizeSkin(document.querySelector('#seg-skin .seg-btn.active')?.dataset.skin ?? 'abyss')
   const next = {
     targetUrl: url,
     minimizeToTray: $('input-tray').checked,
@@ -340,6 +347,10 @@ async function toggleTerm(forceOpen) {
     return
   }
   termBox.classList.remove('hidden')
+  // 终端首开占位：ASCII 原子 + 就绪提示（产生真实输出后不再出现；手动清屏保持空白）
+  if (!termOut.textContent && window.JAtom) {
+    termOut.textContent = JAtom.frame(0) + '\n  [JUNDSH] PowerShell 就绪 — 输入命令，回车执行；Ctrl+L 清屏\n\n'
+  }
   termOpen = true
   $('btn-term').classList.add('active')
   document.body.classList.add('term-visible')
@@ -363,6 +374,12 @@ async function init() {
   applySkin(settings.skin)
   setSegTheme(settings.theme)
   applyZoom(settings.zoomFactor)
+
+  // ASCII 原子像素：加载遮罩 + 离线页挂载（reduced-motion 时自动定格）
+  if (window.JAtom) {
+    JAtom.mount($('veil-atom'), { fps: 6 })
+    JAtom.mount($('offline-atom'), { fps: 7 })
+  }
 
   // 主题切换
   desktop.onTheme(({ dark }) => applyTheme(dark))
@@ -460,8 +477,8 @@ async function init() {
     $('input-login').checked = false
     $('input-float').checked = true
     setSegTheme('system')
-    setSegSkin('default')
-    applySkin('default')
+    setSegSkin('abyss')
+    applySkin('abyss')
     // 「恢复默认」立即生效落盘，避免用户只见控件变、未保存造成困惑
     try {
       const resetDshMode = document.querySelector('#seg-dsh-mode .seg-btn.active')?.dataset.mode ?? 'external'
@@ -472,7 +489,7 @@ async function init() {
         floatEnabled: true,
         zoomFactor: 1,
         theme: 'system',
-        skin: 'default',
+        skin: 'abyss',
         dsh: { mode: resetDshMode, port: settings.dsh?.port ?? 8080, sourceRepo: settings.dsh?.sourceRepo ?? '' },
       })
       applyZoom(1)

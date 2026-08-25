@@ -59,11 +59,18 @@
 
     <!-- 首次加载遮罩 -->
     <div id="veil" class="veil">
-      <img class="veil-whale" src="../assets/whale.svg" alt=""/>
+      <div class="snow"></div>
+      <div class="snow-far"></div>
+      <div class="veil-stack">
+        <img class="veil-whale" src="../assets/whale.svg" alt=""/>
+        <pre class="atom atom-dim" id="veil-atom" aria-hidden="true"></pre>
+      </div>
     </div>
 
     <!-- 离线休息页 -->
     <div id="offline" class="offline hidden">
+      <div class="snow"></div>
+      <div class="snow-far"></div>
       <div class="offline-card border-card">
         <div class="card-inner">
           <div class="whale-wrap">
@@ -72,6 +79,7 @@
             <span class="zzz z2">Z</span>
             <span class="zzz z3">z</span>
           </div>
+          <pre class="atom" id="offline-atom" aria-hidden="true"></pre>
           <h2>小鲸鱼正在休息</h2>
           <p class="offline-desc">连接不上 DSH 服务</p>
           <p class="offline-url" id="offline-url"></p>
@@ -114,12 +122,13 @@
         <div class="field">
           <label>皮肤主题</label>
           <div class="seg" id="seg-skin">
-            <button class="seg-btn" data-skin="default" title="默认深蓝（DeepSeek 官网风）">深蓝</button>
+            <button class="seg-btn" data-skin="abyss" title="深海 ABYSS（黑蓝深海·生物荧光·默认）">深海</button>
+            <button class="seg-btn" data-skin="graphite" title="石墨蓝（经典克制深蓝）">石墨</button>
             <button class="seg-btn" data-skin="violet" title="极光紫（低饱和霓虹）">极光紫</button>
             <button class="seg-btn" data-skin="emerald" title="翡翠绿（沉稳高级）">翡翠</button>
             <button class="seg-btn" data-skin="amber" title="暖阳琥珀">琥珀</button>
           </div>
-          <p class="field-hint">参考开源社区主题：Cherry token 化 / LobeChat 低饱和霓虹 / LM Studio 曲率克制</p>
+          <p class="field-hint">深海 ABYSS 为默认视觉：黑蓝深渊底色 · 玻璃拟态 · 海雪粒子 · ASCII 原子像素</p>
         </div>
         <div class="sec-title">常规</div>
         <div class="field">
@@ -234,6 +243,7 @@
     </div>
   </div>
 
+  <script src="atom.js"></script>
   <script src="shell.js"></script>
 </body>
 </html>

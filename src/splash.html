@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'none'"/>
+      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"/>
 <title>JUNDSH · DSH 桌面端</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -16,7 +16,7 @@
   }
   body { display: grid; place-items: center; }
 
-  /* 旋转渐变边框卡片（DeepSeek Harness 官网风格）
+  /* 旋转渐变边框卡片（深海 ABYSS：黑蓝深渊 + 生物荧光青蓝）
      ::before 超大 conic-gradient + transform 旋转，不依赖 @property */
   .splash-card {
     position: relative;
@@ -25,12 +25,12 @@
     border-radius: 18px;
     overflow: hidden;
     background:
-      radial-gradient(130% 90% at 50% 0%, rgba(42, 95, 158, 0.35) 0%, rgba(42, 95, 158, 0) 55%),
+      radial-gradient(130% 90% at 50% 0%, rgba(31, 108, 160, 0.38) 0%, rgba(31, 108, 160, 0) 55%),
       linear-gradient(135deg, hsla(0, 0%, 100%, 0.07), hsla(0, 0%, 100%, 0) 45%),
-      linear-gradient(#16181d, #121418);
+      linear-gradient(#0b1626, #081020);
     box-shadow:
       0 0 0 1px hsla(0, 0%, 100%, 0.05),
-      0 0 100px rgba(103, 158, 254, 0.12),
+      0 0 100px rgba(76, 194, 255, 0.14),
       0 24px 70px rgba(0, 0, 0, 0.65),
       inset 0 1px 0 hsla(0, 0%, 100%, 0.06);
     display: flex;
@@ -45,11 +45,11 @@
     width: 300%; height: 300%;
     transform: translate(-50%, -50%);
     background: conic-gradient(from 0deg,
-      rgba(58, 101, 194, 0.2) 0deg,
-      rgba(120, 170, 255, 0.85) 90deg,
-      rgba(58, 101, 194, 0.2) 180deg,
-      rgba(120, 170, 255, 0.85) 270deg,
-      rgba(58, 101, 194, 0.2) 360deg);
+      rgba(30, 118, 190, 0.22) 0deg,
+      rgba(150, 224, 255, 0.85) 90deg,
+      rgba(30, 118, 190, 0.22) 180deg,
+      rgba(150, 224, 255, 0.85) 270deg,
+      rgba(30, 118, 190, 0.22) 360deg);
     animation: border-rotate 6s linear infinite;
     pointer-events: none;
   }
@@ -58,15 +58,18 @@
     position: absolute;
     inset: 1px;
     border-radius: 17px;
-    background: linear-gradient(#16181d, #121418);
+    background:
+      linear-gradient(165deg, rgba(46, 134, 193, 0.10), rgba(46, 134, 193, 0) 45%),
+      linear-gradient(#0b1626, #081020);
     pointer-events: none;
   }
   @keyframes border-rotate {
     to { transform: translate(-50%, -50%) rotate(360deg); }
   }
 
-  /* 内容层浮在边框之上 */
+  /* 内容层浮在边框之上（原子水印例外，压到最底层） */
   .splash-card > * { position: relative; z-index: 1; }
+  .splash-card > .atom-watermark { z-index: 0; font-size: 13px; opacity: 0.16; }
 
   /* 微网格 */
   .grid {
@@ -78,12 +81,12 @@
     mask-image: radial-gradient(100% 100% at 50% 30%, rgba(0, 0, 0, 0.8), transparent 85%);
   }
 
-  /* 气泡 */
+  /* 气泡（生物荧光青蓝） */
   .bubbles i {
     position: absolute;
     bottom: -18px;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, rgba(168, 198, 255, 0.55), rgba(103, 158, 254, 0.12));
+    background: radial-gradient(circle at 35% 30%, rgba(168, 230, 255, 0.55), rgba(76, 194, 255, 0.12));
     animation: rise linear infinite;
   }
   .bubbles i:nth-child(1) { left: 12%; width: 9px; height: 9px; animation-duration: 5.2s; animation-delay: 0s; }
@@ -99,7 +102,7 @@
   .whale-hold { position: relative; margin-bottom: 18px; z-index: 1; }
   .whale-hold img {
     width: 88px; height: 88px;
-    filter: drop-shadow(0 0 30px rgba(103, 158, 254, 0.55)) drop-shadow(0 6px 20px rgba(0, 0, 0, 0.5));
+    filter: drop-shadow(0 0 30px rgba(76, 194, 255, 0.55)) drop-shadow(0 6px 20px rgba(0, 0, 0, 0.5));
     animation: floaty 3s ease-in-out infinite;
   }
   @keyframes floaty {
@@ -112,18 +115,18 @@
     font-size: 21px;
     font-weight: 700;
     letter-spacing: 5px;
-    background: linear-gradient(135deg, #a8c6ff 0%, #679efe 55%, #4a8ac4 100%);
+    background: linear-gradient(135deg, #a8e6ff 0%, #4cc2ff 55%, #35a8e8 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 2px 14px rgba(103, 158, 254, 0.4));
+    filter: drop-shadow(0 2px 14px rgba(76, 194, 255, 0.4));
   }
   .sub {
     position: relative; z-index: 1;
     margin-top: 5px;
     font-size: 10.5px;
     letter-spacing: 5px;
-    color: #6a7078;
+    color: #5f7488;
     text-transform: uppercase;
   }
 
@@ -138,7 +141,7 @@
   .bar-inner {
     position: absolute; inset: 0;
     border-radius: 999px;
-    background: linear-gradient(90deg, #1a3870, #4a8ac4, #a8c6ff, #4a8ac4, #1a3870);
+    background: linear-gradient(90deg, #0a2c4f, #35a8e8, #a8e6ff, #35a8e8, #0a2c4f);
     background-size: 200% 100%;
     animation: sweep 1.4s linear infinite;
   }
@@ -151,20 +154,23 @@
     position: relative; z-index: 1;
     margin-top: 12px;
     font-size: 12px;
-    color: #6a7078;
+    color: #5f7488;
     letter-spacing: 1px;
   }
 </style>
 </head>
 <body>
   <div class="splash-card">
+    <pre class="atom atom-watermark" id="splash-atom" aria-hidden="true"></pre>
     <div class="grid"></div>
     <div class="bubbles"><i></i><i></i><i></i><i></i></div>
     <div class="whale-hold"><img src="../assets/whale-white.svg" alt=""/></div>
     <div class="wordmark">JUNDSH</div>
     <div class="sub">DSH Desktop</div>
     <div class="bar"><div class="bar-inner"></div></div>
-    <div class="caption">正在唤醒小鲸鱼…</div>
+    <div class="caption" id="caption">正在唤醒小鲸鱼…</div>
   </div>
+  <script src="atom.js"></script>
+  <script src="splash.js"></script>
 </body>
 </html>

@@ -256,8 +256,10 @@ function applyTheme(dark) {
 function applyPersona(p) {
   if (!p) return
   const html = document.documentElement
-  html.classList.remove('skin-violet', 'skin-emerald', 'skin-amber')
-  if (p.skin && p.skin !== 'default') html.classList.add('skin-' + p.skin)
+  // abyss 为默认（无类）；'default' 是 v1.3 旧键，迁移为 abyss
+  const skin = p.skin === 'default' ? 'abyss' : p.skin
+  html.classList.remove('skin-graphite', 'skin-violet', 'skin-emerald', 'skin-amber')
+  if (['graphite', 'violet', 'emerald', 'amber'].includes(skin)) html.classList.add('skin-' + skin)
   if (typeof p.dark === 'boolean') applyTheme(p.dark)
 }
 float.getTheme().then(applyTheme).catch(() => {})

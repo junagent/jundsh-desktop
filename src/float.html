@@ -23,23 +23,27 @@
   }
   #whale-shell.dragging { cursor: grabbing; }
 
+  /* 鲸鱼光晕色随皮肤（默认深海青蓝；石墨蓝皮肤见下方覆盖） */
+  :root { --whale-glow: rgba(76, 194, 255, 0.28); --whale-glow-strong: rgba(76, 194, 255, 0.6); }
+  html.skin-graphite { --whale-glow: rgba(103, 158, 254, 0.28); --whale-glow-strong: rgba(103, 158, 254, 0.6); }
+
   /* 鲸鱼：悬空视觉 = 柔和投影 + 泛光，深色桌面也清晰 */
   #whale {
     width: 116px; height: 116px;
     pointer-events: none;
     filter:
       drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42))
-      drop-shadow(0 0 22px rgba(103, 158, 254, 0.28));
+      drop-shadow(0 0 22px var(--whale-glow));
     animation: floaty 4s ease-in-out infinite;
     transition: width 0.22s ease, height 0.22s ease;
   }
   /* ---- 连接状态光效（由 float.js 按 dsh-svc 状态切换类） ---- */
-  /* 在线：品牌蓝光呼吸 */
+  /* 在线：品牌荧光呼吸 */
   #whale.online {
     animation: floaty 4s ease-in-out infinite, breathe 3s ease-in-out infinite;
     filter:
       drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42))
-      drop-shadow(0 0 26px rgba(103, 158, 254, 0.6));
+      drop-shadow(0 0 26px var(--whale-glow-strong));
   }
   /* 连接中/尝试中：琥珀黄脉冲 */
   #whale.connecting {
@@ -56,8 +60,8 @@
       drop-shadow(0 0 14px rgba(160, 82, 78, 0.4));
   }
   @keyframes breathe {
-    0%, 100% { filter: drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42)) drop-shadow(0 0 14px rgba(103, 158, 254, 0.3)); }
-    50% { filter: drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42)) drop-shadow(0 0 34px rgba(103, 158, 254, 0.75)); }
+    0%, 100% { filter: drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42)) drop-shadow(0 0 14px var(--whale-glow)); }
+    50% { filter: drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42)) drop-shadow(0 0 34px var(--whale-glow-strong)); }
   }
   @keyframes pulse-glow {
     0%, 100% { opacity: 1; }
@@ -89,10 +93,10 @@
     min-width: 168px;
     padding: 6px;
     border-radius: 12px;
-    background: rgba(26, 28, 33, 0.92);
+    background: rgba(9, 18, 33, 0.92);
     backdrop-filter: blur(18px);
-    border: 1px solid hsla(0, 0%, 100%, 0.1);
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(140, 214, 255, 0.26);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 hsla(0, 0%, 100%, 0.05);
     display: flex; flex-direction: column;
     gap: 2px;
   }
@@ -109,8 +113,10 @@
     cursor: pointer;
     text-align: left;
   }
-  .mi:hover { background: hsla(0, 0%, 100%, 0.08); }
-  /* 皮肤 accent 协调：悬浮窗菜单强调色跟随主窗皮肤 */
+  .mi:hover { background: rgba(96, 176, 235, 0.14); }
+  /* 皮肤 accent 协调：悬浮窗菜单强调色跟随主窗皮肤（默认深海青蓝） */
+  html.skin-graphite #menu-inner { border-color: hsla(0, 0%, 100%, 0.1); }
+  html.skin-graphite .mi:hover { background: hsla(0, 0%, 100%, 0.08); }
   html.skin-violet #menu-inner { border-color: rgba(167, 139, 250, 0.35); }
   html.skin-violet .mi:hover { background: rgba(167, 139, 250, 0.16); }
   html.skin-violet .mi .dot.ok { box-shadow: 0 0 8px rgba(167, 139, 250, 0.8); }

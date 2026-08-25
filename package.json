@@ -1,7 +1,7 @@
 {
   "name": "jundsh-desktop",
   "productName": "JUNDSH",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "JUNDSH — 黑色鲸鱼标志的 DSH 桌面客户端",
   "main": "src/main.js",
   "author": "JUNDSH",
@@ -10,7 +10,7 @@
     "start": "electron .",
     "icons": "node scripts/gen-icons.mjs",
     "branding": "electron scripts/gen-branding.mjs",
-    "check": "node --check src/main.js && node --check src/preload.js && node --check src/float-preload.js && node --check src/shell.js && node --check src/float.js && node --check src/dsh-svc.js && node --check src/diag.js && node --check scripts/gen-icons.mjs && node --check scripts/gen-branding.mjs && node --check scripts/smoke-dsh-svc.js",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/float-preload.js && node --check src/shell.js && node --check src/float.js && node --check src/atom.js && node --check src/splash.js && node --check src/dsh-svc.js && node --check src/diag.js && node --check scripts/gen-icons.mjs && node --check scripts/gen-branding.mjs && node --check scripts/smoke-dsh-svc.js",
     "smoke": "node scripts/smoke-dsh-svc.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win"
