@@ -42,6 +42,31 @@
     return Math.min(65535, p)
   }
 
+  // 设置导入白名单：从任意来源 JSON 中挑出可识别、规范化后的字段（不含设备相关项：
+  // 窗口位置/最大化/悬浮鲸位置/自启状态/便携版提醒等均不随备份迁移）
+  function pickImportable(raw) {
+    const patch = {}
+    if (!raw || typeof raw !== 'object') return patch
+    if (isValidHttpUrl(typeof raw.targetUrl === 'string' ? raw.targetUrl.trim() : '')) {
+      patch.targetUrl = raw.targetUrl.trim()
+    }
+    if (typeof raw.minimizeToTray === 'boolean') patch.minimizeToTray = raw.minimizeToTray
+    if (typeof raw.zoomFactor === 'number') patch.zoomFactor = clampZoom(raw.zoomFactor)
+    if (THEMES.includes(raw.theme)) patch.theme = raw.theme
+    if (isKnownSkin(raw.skin)) patch.skin = normalizeSkin(raw.skin)
+    if (typeof raw.floatEnabled === 'boolean') patch.floatEnabled = raw.floatEnabled
+    if (typeof raw.hotkeySummon === 'boolean') patch.hotkeySummon = raw.hotkeySummon
+    if (typeof raw.notifyServiceState === 'boolean') patch.notifyServiceState = raw.notifyServiceState
+    if (raw.dsh && typeof raw.dsh === 'object') {
+      const d = {}
+      if (DSH_MODES.includes(raw.dsh.mode)) d.mode = raw.dsh.mode
+      if (typeof raw.dsh.port === 'number') d.port = clampPort(raw.dsh.port)
+      if (typeof raw.dsh.sourceRepo === 'string' && raw.dsh.sourceRepo) d.sourceRepo = raw.dsh.sourceRepo
+      if (Object.keys(d).length) patch.dsh = d
+    }
+    return patch
+  }
+
   const api = {
     SKINS,
     THEMES,
@@ -53,6 +78,7 @@
     isValidHttpUrl,
     clampZoom,
     clampPort,
+    pickImportable,
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = api
   else global.JSchema = api

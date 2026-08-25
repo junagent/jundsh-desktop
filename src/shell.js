@@ -145,21 +145,28 @@ function toast(msg) {
 }
 
 // ---------------- 设置弹窗 ----------------
+// 用设置对象刷新整个表单（打开弹窗 / 导入配置后共用）
+function fillSettingsForm(s) {
+  $('input-url').value = s.targetUrl
+  $('input-zoom').value = Math.round(s.zoomFactor * 100)
+  updateZoomFill()
+  $('input-tray').checked = s.minimizeToTray
+  $('input-login').checked = !!s.loginItem
+  $('input-float').checked = s.floatEnabled !== false
+  $('input-hotkey').checked = s.hotkeySummon !== false
+  $('input-notify-svc').checked = s.notifyServiceState !== false
+  $('input-dsh-port').value = s.dsh?.port ?? 8080
+  $('input-dsh-repo').value = s.dsh?.sourceRepo ?? ''
+  setDshMode(s.dsh?.mode ?? 'external')
+  setSegTheme(s.theme ?? 'system')
+  setSegSkin(s.skin)
+}
 async function openSettings() {
   // 实时刷新（自启状态可能被用户在系统层修改，避免用 init 时的旧缓存）
   try {
     settings = await desktop.getSettings()
   } catch { /* 保持旧值 */ }
-  $('input-url').value = settings.targetUrl
-  $('input-zoom').value = Math.round(settings.zoomFactor * 100)
-  updateZoomFill()
-  $('input-tray').checked = settings.minimizeToTray
-  $('input-login').checked = !!settings.loginItem
-  $('input-float').checked = settings.floatEnabled !== false
-  $('input-dsh-port').value = settings.dsh?.port ?? 8080
-  $('input-dsh-repo').value = settings.dsh?.sourceRepo ?? ''
-  setDshMode(settings.dsh?.mode ?? 'external')
-  setSegSkin(settings.skin)
+  fillSettingsForm(settings)
   // 同步服务状态
   renderDshState(lastDsh)
   desktop.getDshStatus().then(renderDshState).catch(() => {})
@@ -241,6 +248,8 @@ async function saveSettings() {
     minimizeToTray: $('input-tray').checked,
     loginItem: $('input-login').checked,
     floatEnabled: $('input-float').checked,
+    hotkeySummon: $('input-hotkey').checked,
+    notifyServiceState: $('input-notify-svc').checked,
     zoomFactor: Number($('input-zoom').value) / 100,
     theme: activeTheme,
     skin: activeSkin,
@@ -420,6 +429,34 @@ async function init() {
   // 环境诊断
   $('btn-diag').addEventListener('click', runDiag)
 
+  // 设置导入 / 导出（备份与跨设备迁移；主进程负责文件对话框与白名单校验）
+  $('btn-export-settings').addEventListener('click', async () => {
+    try {
+      const r = await desktop.exportSettings()
+      toast(r?.ok ? '配置已导出' : r?.error ? `导出失败：${r.error}` : '已取消')
+    } catch { toast('导出失败，请重试') }
+  })
+  $('btn-import-settings').addEventListener('click', async () => {
+    try {
+      const r = await desktop.importSettings()
+      if (!r || !r.ok) { if (r?.error) toast(r.error); return } // 取消则静默
+      settings = await desktop.getSettings()
+      fillSettingsForm(settings)
+      // 外壳视觉与连接立即跟上导入结果（主题经 nativeTheme 联动自动推送）
+      applyZoom(settings.zoomFactor)
+      applySkin(settings.skin)
+      if (settings.targetUrl !== gui.getURL()) {
+        loadedOnce = false
+        setState('connecting')
+        gui.src = settings.targetUrl
+        offlineUrl.textContent = settings.targetUrl
+      } else {
+        setState('online')
+      }
+      toast(`已导入 ${r.applied.length} 项设置`)
+    } catch { toast('导入失败，请重试') }
+  })
+
   // 内置终端
   $('btn-term').addEventListener('click', () => toggleTerm())
   $('btn-term-close').addEventListener('click', () => toggleTerm(false))
@@ -471,6 +508,8 @@ async function init() {
     $('input-tray').checked = true
     $('input-login').checked = false
     $('input-float').checked = true
+    $('input-hotkey').checked = true
+    $('input-notify-svc').checked = true
     setSegTheme('system')
     setSegSkin('abyss')
     applySkin('abyss')
@@ -482,6 +521,8 @@ async function init() {
         minimizeToTray: true,
         loginItem: false,
         floatEnabled: true,
+        hotkeySummon: true,
+        notifyServiceState: true,
         zoomFactor: 1,
         theme: 'system',
         skin: 'abyss',

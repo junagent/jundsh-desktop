@@ -1,7 +1,7 @@
 // JUNDSH · DSH 桌面端 — 主进程
 'use strict'
 
-const { app, BrowserWindow, Tray, Menu, ipcMain, shell, session, nativeImage, nativeTheme, screen, webContents, Notification, crashReporter, dialog } = require('electron')
+const { app, BrowserWindow, Tray, Menu, ipcMain, shell, session, nativeImage, nativeTheme, screen, webContents, Notification, crashReporter, dialog, globalShortcut } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const { execFileSync } = require('node:child_process')
 const path = require('node:path')
@@ -18,6 +18,9 @@ const DEFAULT_URL = 'http://127.0.0.1:8080'
 const DEBUG_SHOT = !!process.env.DSH_DESKTOP_SHOT // 调试：截图后退出
 // 便携版（electron-builder portable target 解压运行）不支持自动更新
 const IS_PORTABLE = process.env.PORTABLE_EXECUTABLE_DIR !== undefined
+// 开机自启静默启动：登录后小鲸鱼在托盘待命，不弹窗口（自启项带 --hidden 参数写入）
+const START_HIDDEN = process.argv.includes('--hidden')
+const HOTKEY_TOGGLE = 'Control+Alt+J' // 全局呼出/隐藏主窗
 
 let mainWindow = null
 let splashWindow = null
@@ -65,6 +68,9 @@ function loadSettings() {
   }
   // 桌面悬浮鲸鱼（默认开启）
   settings.floatEnabled = settings.floatEnabled !== false
+  // 全局快捷键呼出 / 服务状态系统通知（默认开启）
+  settings.hotkeySummon = settings.hotkeySummon !== false
+  settings.notifyServiceState = settings.notifyServiceState !== false
   const fb = settings.floatBounds
   const hasSavedFloat = !!(fb && typeof fb === 'object' && Number.isInteger(fb.x) && Number.isInteger(fb.y))
   settings.floatBounds = hasSavedFloat
@@ -94,6 +100,51 @@ function pushDshStatus(state) {
     lastTrayState = { alive: state.alive, port: state.port, lastError: state.lastError || null }
     refreshTrayMenu()
   }
+  maybeNotifyServiceState(state)
+}
+
+// ---------------- 服务状态系统通知 ----------------
+// 主窗在托盘/隐藏时，DSH 上线↔离线转换用系统通知提醒（转换边缘触发，不重复轰炸）；
+// 首次探测只记基线；用户正看着主窗时不打扰（状态胶囊已可见）
+let lastAliveState // undefined = 尚未收到首次探测结果
+function maybeNotifyServiceState(state) {
+  const alive = !!state.alive
+  if (lastAliveState === undefined) { lastAliveState = alive; return }
+  if (alive === lastAliveState) return
+  lastAliveState = alive
+  if (!settings.notifyServiceState) return
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) return
+  if (!Notification.isSupported()) return
+  const n = new Notification({
+    title: alive ? 'JUNDSH 已连接 DSH' : 'JUNDSH 与 DSH 断开',
+    body: alive
+      ? `服务已上线（端口 ${state.port}），点击查看`
+      : `服务不可达（端口 ${state.port}${state.lastError ? ' · ' + state.lastError : ''}），点击查看`,
+    icon: buildDir('icon.png'),
+  })
+  n.on('click', () => showMainWindow())
+  n.on('failed', (_e, err) => console.error('[jundsh] 状态通知失败:', err))
+  try { n.show() } catch { /* 平台限制时忽略 */ }
+}
+
+// ---------------- 全局快捷键呼出/隐藏主窗 ----------------
+function applyHotkeySetting() {
+  globalShortcut.unregister(HOTKEY_TOGGLE)
+  if (!settings.hotkeySummon) return
+  let ok = false
+  try {
+    ok = globalShortcut.register(HOTKEY_TOGGLE, toggleMainWindow)
+  } catch (err) {
+    console.error('[jundsh] 全局快捷键注册失败:', err.message)
+  }
+  if (!ok) {
+    settings.hotkeySummon = false
+    mainWindow?.webContents.send('app:toast', `快捷键 ${HOTKEY_TOGGLE} 注册失败（可能被其他应用占用）`)
+  }
+}
+function toggleMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) mainWindow.hide()
+  else showMainWindow()
 }
 function requireDshSvc() {
   if (dshSvc) return dshSvc
@@ -249,6 +300,8 @@ function createMainWindow() {
   })
 
   mainWindow.once('ready-to-show', () => {
+    // 开机自启静默启动：不弹窗、不出启动页，小鲸鱼在托盘待命（点托盘/快捷键唤出）
+    if (START_HIDDEN) { setTimeout(closeSplash, 0); return }
     if (settings.maximized) mainWindow.maximize()
     mainWindow.show()
     // 启动页居中到主窗口
@@ -546,6 +599,71 @@ function saveWindowState() {
   saveSettings(true) // 退出路径立即落盘
 }
 
+// ---------------- 设置补丁应用 ----------------
+// 设置面板保存 / 备份导入共用的唯一入口：白名单校验 + 联动副作用 + 落盘
+function applySettingsPatch(patch) {
+  if (!patch || typeof patch !== 'object') return
+  if (Schema.isValidHttpUrl(typeof patch.targetUrl === 'string' ? patch.targetUrl.trim() : '')) {
+    settings.targetUrl = patch.targetUrl.trim()
+  }
+  if (typeof patch.minimizeToTray === 'boolean') settings.minimizeToTray = patch.minimizeToTray
+  if (typeof patch.zoomFactor === 'number') {
+    settings.zoomFactor = Schema.clampZoom(patch.zoomFactor)
+  }
+  if (Schema.THEMES.includes(patch.theme)) {
+    settings.theme = patch.theme
+    applyTheme()
+  }
+  if (Schema.isKnownSkin(patch.skin)) {
+    // 兼容旧键：'default' 视为 abyss（isKnownSkin 已识别别名）
+    settings.skin = Schema.normalizeSkin(patch.skin)
+    if (floatWindow && !floatWindow.isDestroyed()) {
+      floatWindow.webContents.send('float:persona', { dark: nativeTheme.shouldUseDarkColors, skin: settings.skin })
+    }
+  }
+  if (typeof patch.loginItem === 'boolean') {
+    // 自启项带 --hidden：登录后静默进托盘，不弹窗打扰
+    app.setLoginItemSettings({ openAtLogin: patch.loginItem, args: ['--hidden'] })
+    // 注意：不持久化 loginItem，读取时实时来自 getLoginItemSettings
+  }
+  if (typeof patch.hotkeySummon === 'boolean') {
+    settings.hotkeySummon = patch.hotkeySummon
+    applyHotkeySetting()
+  }
+  if (typeof patch.notifyServiceState === 'boolean') {
+    settings.notifyServiceState = patch.notifyServiceState
+  }
+  if (patch.dsh && typeof patch.dsh === 'object') {
+    const next = { ...settings.dsh }
+    if (Schema.DSH_MODES.includes(patch.dsh.mode)) {
+      next.mode = patch.dsh.mode
+      // 切换模式时同步端口默认值
+      if (typeof patch.dsh.port === 'number') next.port = Schema.clampPort(patch.dsh.port)
+    } else if (typeof patch.dsh.port === 'number') {
+      next.port = Schema.clampPort(patch.dsh.port)
+    }
+    if (typeof patch.dsh.sourceRepo === 'string' && patch.dsh.sourceRepo) next.sourceRepo = patch.dsh.sourceRepo
+    settings.dsh = next
+    if (dshSvc) dshSvc.applyConfig()
+  }
+  // 桌面悬浮鲸鱼开关
+  if (typeof patch.floatEnabled === 'boolean') {
+    settings.floatEnabled = patch.floatEnabled
+    if (settings.floatEnabled) {
+      if (!floatWindow || floatWindow.isDestroyed()) createFloatWindow()
+      else if (!floatWindow.isVisible()) floatWindow.show()
+    } else if (floatWindow && !floatWindow.isDestroyed()) {
+      floatWindow.close()
+      floatWindow = null
+    }
+    refreshTrayMenu()
+  }
+  saveSettings()
+}
+
+// 导出备份时剔除的设备相关易变键（换机迁移无意义）
+const VOLATILE_KEYS = new Set(['bounds', 'maximized', 'floatBounds', 'floatSnapEdge', 'portableNudgeShown'])
+
 // ---------------- IPC ----------------
 // 只接受来自外壳页面（mainWindow.webContents）的调用，忽略 webview 等其他 sender
 function guard(fn) {
@@ -574,57 +692,46 @@ function registerIpc() {
     loginItem: getLoginItemState(),
   })))
   ipcMain.handle('app:set-settings', guard((_e, patch) => {
-    if (patch && typeof patch === 'object') {
-      if (Schema.isValidHttpUrl(typeof patch.targetUrl === 'string' ? patch.targetUrl.trim() : '')) {
-        settings.targetUrl = patch.targetUrl.trim()
-      }
-      if (typeof patch.minimizeToTray === 'boolean') settings.minimizeToTray = patch.minimizeToTray
-      if (typeof patch.zoomFactor === 'number') {
-        settings.zoomFactor = Schema.clampZoom(patch.zoomFactor)
-      }
-      if (Schema.THEMES.includes(patch.theme)) {
-        settings.theme = patch.theme
-        applyTheme()
-      }
-      if (Schema.isKnownSkin(patch.skin)) {
-        // 兼容旧键：'default' 视为 abyss（isKnownSkin 已识别别名）
-        settings.skin = Schema.normalizeSkin(patch.skin)
-        if (floatWindow && !floatWindow.isDestroyed()) {
-          floatWindow.webContents.send('float:persona', { dark: nativeTheme.shouldUseDarkColors, skin: settings.skin })
-        }
-      }
-      if (typeof patch.loginItem === 'boolean') {
-        app.setLoginItemSettings({ openAtLogin: patch.loginItem })
-        // 注意：不持久化 loginItem，读取时实时来自 getLoginItemSettings
-      }
-      if (patch.dsh && typeof patch.dsh === 'object') {
-        const next = { ...settings.dsh }
-        if (Schema.DSH_MODES.includes(patch.dsh.mode)) {
-          next.mode = patch.dsh.mode
-          // 切换模式时同步端口默认值
-          if (typeof patch.dsh.port === 'number') next.port = Schema.clampPort(patch.dsh.port)
-        } else if (typeof patch.dsh.port === 'number') {
-          next.port = Schema.clampPort(patch.dsh.port)
-        }
-        if (typeof patch.dsh.sourceRepo === 'string' && patch.dsh.sourceRepo) next.sourceRepo = patch.dsh.sourceRepo
-        settings.dsh = next
-        if (dshSvc) dshSvc.applyConfig()
-      }
-      // 桌面悬浮鲸鱼开关
-      if (typeof patch.floatEnabled === 'boolean') {
-        settings.floatEnabled = patch.floatEnabled
-        if (settings.floatEnabled) {
-          if (!floatWindow || floatWindow.isDestroyed()) createFloatWindow()
-          else if (!floatWindow.isVisible()) floatWindow.show()
-        } else if (floatWindow && !floatWindow.isDestroyed()) {
-          floatWindow.close()
-          floatWindow = null
-        }
-        refreshTrayMenu()
-      }
-      saveSettings()
-    }
+    applySettingsPatch(patch)
     return settings
+  }))
+  // 设置导出：剔除设备相关易变键（窗口/悬浮鲸位置、自启状态等），另存为 JSON 备份
+  ipcMain.handle('app:export-settings', guard(async () => {
+    const r = await dialog.showSaveDialog(mainWindow, {
+      title: '导出 JUNDSH 设置',
+      defaultPath: 'jundsh-settings-backup.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+    if (r.canceled || !r.filePath) return { ok: false }
+    try {
+      const clone = {}
+      for (const [k, v] of Object.entries(settings)) {
+        if (!VOLATILE_KEYS.has(k)) clone[k] = v
+      }
+      fs.writeFileSync(r.filePath, JSON.stringify(clone, null, 2))
+      return { ok: true, path: r.filePath }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
+  }))
+  // 设置导入：读 JSON → Schema 白名单过滤 → 复用设置补丁路径（校验/联动完全一致）
+  ipcMain.handle('app:import-settings', guard(async () => {
+    const r = await dialog.showOpenDialog(mainWindow, {
+      title: '导入 JUNDSH 设置',
+      filters: [{ name: 'JSON', extensions: ['json'] }, { name: '所有文件', extensions: ['*'] }],
+      properties: ['openFile'],
+    })
+    if (r.canceled || !r.filePaths?.[0]) return { ok: false }
+    try {
+      const raw = JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8'))
+      const patch = Schema.pickImportable(raw)
+      const applied = Object.keys(patch)
+      if (!applied.length) return { ok: false, error: '文件中没有可识别的 JUNDSH 设置' }
+      applySettingsPatch(patch)
+      return { ok: true, applied }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
   }))
   ipcMain.on('app:open-external', guard((_e, url) => {
     if (typeof url === 'string' && /^https?:/i.test(url)) shell.openExternal(url)
@@ -785,6 +892,7 @@ if (!gotLock) {
     app.setAppUserModelId('com.jundsh.desktop')
     loadSettings()
     applyTheme()
+    applyHotkeySetting()
     nativeTheme.on('updated', () => {
       const dark = nativeTheme.shouldUseDarkColors
       mainWindow?.webContents.send('theme:changed', { dark })
@@ -794,7 +902,8 @@ if (!gotLock) {
     setupAutoUpdate()
     requireDshSvc() // 启动服务管理器（默认仅探测，不主动拉起）
     if (!DEBUG_SHOT) createTray()
-    createSplash()
+    // 开机自启静默启动（--hidden）跳过启动页；调试截图模式保留
+    if (!START_HIDDEN) createSplash()
     createMainWindow()
     // 桌面悬浮鲸鱼（调试截图模式下仅 float 模式创建以便验证；其余跳过避免干扰截图）
     if (!DEBUG_SHOT || process.env.DSH_DESKTOP_SHOT === 'float') createFloatWindow()
@@ -807,6 +916,7 @@ if (!gotLock) {
 
   // 退出前冲刷未落盘的设置（防抖可能还在等待）
   app.on('before-quit', () => {
+    globalShortcut.unregisterAll()
     if (saveTimer) {
       clearTimeout(saveTimer)
       saveTimer = null

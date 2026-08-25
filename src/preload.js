@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('desktop', {
   close: () => ipcRenderer.send('app:close'),
   getSettings: () => ipcRenderer.invoke('app:get-settings'),
   setSettings: (patch) => ipcRenderer.invoke('app:set-settings', patch),
+  exportSettings: () => ipcRenderer.invoke('app:export-settings'),
+  importSettings: () => ipcRenderer.invoke('app:import-settings'),
   openExternal: (url) => ipcRenderer.send('app:open-external', url),
   guiReady: () => ipcRenderer.send('app:gui-ready'),
   openDevTools: () => ipcRenderer.send('app:open-dev-tools'),

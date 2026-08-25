@@ -69,3 +69,54 @@ test('清单常量与规范化互洽', () => {
   assert.deepEqual([...Schema.THEMES].sort(), ['dark', 'light', 'system'])
   assert.deepEqual([...Schema.DSH_MODES].sort(), ['external', 'profile', 'source'])
 })
+
+test('pickImportable：合法字段全量保留并规范化', () => {
+  const patch = Schema.pickImportable({
+    targetUrl: ' http://127.0.0.1:9000 ',
+    minimizeToTray: false,
+    zoomFactor: 9,
+    theme: 'dark',
+    skin: 'default',
+    floatEnabled: false,
+    hotkeySummon: false,
+    notifyServiceState: true,
+    dsh: { mode: 'profile', port: 99999, sourceRepo: 'D:/dsh' },
+  })
+  assert.deepEqual(patch, {
+    targetUrl: 'http://127.0.0.1:9000',
+    minimizeToTray: false,
+    zoomFactor: 2, // clamp 上限
+    theme: 'dark',
+    skin: 'abyss', // 旧键别名迁移
+    floatEnabled: false,
+    hotkeySummon: false,
+    notifyServiceState: true,
+    dsh: { mode: 'profile', port: 65535, sourceRepo: 'D:/dsh' },
+  })
+})
+
+test('pickImportable：白名单外与设备相关字段一律剔除', () => {
+  const patch = Schema.pickImportable({
+    targetUrl: 'not-a-url',
+    theme: 'sepia',
+    loginItem: true, // 设备相关：不随备份迁移
+    bounds: { x: 0, y: 0 },
+    maximized: true,
+    version: '1.4.0',
+    unknownKey: 42,
+  })
+  assert.deepEqual(patch, {})
+})
+
+test('pickImportable：dsh 部分字段只收可识别的', () => {
+  const patch = Schema.pickImportable({ dsh: { mode: 'auto', port: 'abc', sourceRepo: '' } })
+  assert.deepEqual(patch, {}) // 全部不可识别 → 不带 dsh
+  const patch2 = Schema.pickImportable({ dsh: { mode: 'source', port: 7000 } })
+  assert.deepEqual(patch2, { dsh: { mode: 'source', port: 7000 } })
+})
+
+test('pickImportable：非对象输入安全返回空补丁', () => {
+  assert.deepEqual(Schema.pickImportable(null), {})
+  assert.deepEqual(Schema.pickImportable('json'), {})
+  assert.deepEqual(Schema.pickImportable(123), {})
+})

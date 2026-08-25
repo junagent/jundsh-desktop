@@ -166,6 +166,31 @@
             <span class="knob"></span>
           </label>
         </div>
+        <div class="field row">
+          <div class="grow">
+            <label>全局快捷键呼出</label>
+            <p class="field-hint">任何界面按 <b>Ctrl</b>+<b>Alt</b>+<b>J</b> 呼出 / 隐藏小鲸鱼主窗</p>
+          </div>
+          <label class="switch">
+            <input id="input-hotkey" type="checkbox"/>
+            <span class="knob"></span>
+          </label>
+        </div>
+        <div class="field row">
+          <div class="grow">
+            <label>服务状态通知</label>
+            <p class="field-hint">主窗在托盘时，DSH 服务上线 / 掉线弹系统通知</p>
+          </div>
+          <label class="switch">
+            <input id="input-notify-svc" type="checkbox"/>
+            <span class="knob"></span>
+          </label>
+        </div>
+        <div class="field row">
+          <button class="btn ghost" id="btn-export-settings">导出配置</button>
+          <button class="btn ghost" id="btn-import-settings">导入配置</button>
+          <p class="field-hint grow">备份 / 迁移设置到其他电脑（不含窗口位置与开机自启）</p>
+        </div>
         <div class="sec-title">DSH 服务</div>
         <div class="field">
           <label>服务管理</label>
