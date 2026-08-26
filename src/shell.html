@@ -247,6 +247,27 @@
 
   <div id="toast" class="toast"></div>
 
+  <!-- 页内查找条（Ctrl+F） -->
+  <div id="findbar" class="findbar hidden">
+    <svg class="find-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+    <input id="find-in" type="text" placeholder="在页面中查找…" spellcheck="false" autocomplete="off"/>
+    <span id="find-count" class="find-count"></span>
+    <button id="find-prev" class="nav-btn" title="上一个 (Shift+Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 14 12 8 18 14"/></svg></button>
+    <button id="find-next" class="nav-btn" title="下一个 (Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 10 12 16 18 10"/></svg></button>
+    <button id="find-close" class="nav-btn" title="关闭 (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+  </div>
+
+  <!-- 命令面板（Ctrl+K） -->
+  <div id="palette" class="palette hidden">
+    <div class="palette-card">
+      <div class="palette-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 17l6-6-6-6"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        <input id="palette-in" type="text" placeholder="输入命令… ↑↓ 选择 · 回车执行 · Esc 关闭" spellcheck="false" autocomplete="off"/>
+      </div>
+      <div id="palette-list" class="palette-list"></div>
+    </div>
+  </div>
+
   <!-- 内置终端抽屉 -->
   <div id="term" class="term hidden">
     <div class="term-head">
@@ -269,6 +290,7 @@
   </div>
 
   <script src="settings-schema.js"></script>
+  <script src="unread.js"></script>
   <script src="atom.js"></script>
   <script src="shell.js"></script>
 </body>

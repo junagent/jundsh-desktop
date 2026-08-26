@@ -369,6 +369,157 @@ async function toggleTerm(forceOpen) {
   setTimeout(() => termIn.focus(), 60)
 }
 
+// ---------------- 未读消息感知 ----------------
+// webview 标题带未读前缀（如 "(3) DeepSeek"）→ 解析上报主进程（角标/托盘/悬浮鲸）
+function bindUnreadTracking() {
+  const parse = window.JUnread ? window.JUnread.parseUnreadTitle : () => 0
+  gui.addEventListener('page-title-updated', (e) => {
+    desktop.reportUnread(parse(e.title))
+  })
+}
+
+// ---------------- 页内查找（Ctrl+F） ----------------
+const findBar = $('findbar')
+const findIn = $('find-in')
+const findCount = $('find-count')
+let findOpen = false
+
+function openFind() {
+  findOpen = true
+  findBar.classList.remove('hidden')
+  findIn.focus()
+  findIn.select()
+  if (findIn.value.trim()) doFind()
+}
+function closeFind() {
+  if (!findOpen) return
+  findOpen = false
+  findBar.classList.add('hidden')
+  try { gui.stopFindInPage('clearSelection') } catch { /* webview 未就绪 */ }
+  findCount.textContent = ''
+}
+function doFind(forward) {
+  const q = findIn.value
+  if (!q) { try { gui.stopFindInPage('clearSelection') } catch { /* ignore */ } findCount.textContent = ''; return }
+  const opts = forward === undefined ? undefined : { forward: !!forward, findNext: true }
+  try { gui.findInPage(q, opts) } catch { /* webview 未就绪 */ }
+}
+
+// ---------------- 命令面板（Ctrl+K） ----------------
+const paletteEl = $('palette')
+const paletteIn = $('palette-in')
+const paletteList = $('palette-list')
+let paletteActive = 0
+let paletteItems = []
+
+// 即时生效并落盘（走主进程 applySettingsPatch 同一校验通道），同时同步设置面板控件状态
+async function applyLiveSetting(patch, okHint) {
+  settings = await desktop.setSettings(patch)
+  fillSettingsForm(settings)
+  if (patch.skin) applySkin(settings.skin)
+  if (patch.zoomFactor) { applyZoom(settings.zoomFactor); $('input-zoom').value = Math.round(settings.zoomFactor * 100); updateZoomFill() }
+  toast(okHint)
+}
+
+function buildCommands() {
+  const termVisible = termOpen && !termBox.classList.contains('hidden')
+  return [
+    { t: '页内查找', hint: 'Ctrl+F', run: openFind },
+    { t: termVisible ? '关闭终端' : '打开终端', hint: 'Ctrl+`', run: () => toggleTerm(!termVisible) },
+    { t: '打开设置', run: openSettings },
+    { t: '刷新页面', run: () => { loadedOnce = false; setState('connecting'); gui.reload() } },
+    { t: '启动 DSH 服务', run: async () => { toast('正在启动/接入 DSH 服务…'); const r = await desktop.startDsh().catch(() => null); renderDshState(r?.state); toast(r?.attached ? '已接入外部服务' : r?.ok ? 'DSH 服务已启动' : '启动未完成，请查看服务状态') } },
+    { t: '重启 DSH 服务', run: async () => { toast('正在重启 DSH 服务…'); const r = await desktop.restartDsh().catch(() => null); if (r?.state) renderDshState(r.state) } },
+    { t: '停止托管服务', run: async () => { const r = await desktop.stopDsh().catch(() => null); if (r?.state) renderDshState(r.state); toast('已停止托管服务') } },
+    { t: '外观：跟随系统', run: () => applyLiveSetting({ theme: 'system' }, '已切换：跟随系统') },
+    { t: '外观：浅色', run: () => applyLiveSetting({ theme: 'light' }, '已切换：浅色') },
+    { t: '外观：深色', run: () => applyLiveSetting({ theme: 'dark' }, '已切换：深色') },
+    { t: '皮肤：深海 ABYSS', k: 'abyss 默认', run: () => applyLiveSetting({ skin: 'abyss' }, '皮肤：深海 ABYSS') },
+    { t: '皮肤：石墨蓝', k: 'graphite', run: () => applyLiveSetting({ skin: 'graphite' }, '皮肤：石墨蓝') },
+    { t: '皮肤：极光紫', k: 'violet', run: () => applyLiveSetting({ skin: 'violet' }, '皮肤：极光紫') },
+    { t: '皮肤：翡翠绿', k: 'emerald', run: () => applyLiveSetting({ skin: 'emerald' }, '皮肤：翡翠绿') },
+    { t: '皮肤：暖阳琥珀', k: 'amber', run: () => applyLiveSetting({ skin: 'amber' }, '皮肤：暖阳琥珀') },
+    { t: '界面放大', hint: 'Ctrl+=', run: () => zoomBy(0.05) },
+    { t: '界面缩小', hint: 'Ctrl+-', run: () => zoomBy(-0.05) },
+    { t: '缩放重置 100%', hint: 'Ctrl+0', run: () => applyLiveSetting({ zoomFactor: 1 }, '缩放已重置') },
+    { t: settings.floatEnabled !== false ? '隐藏悬浮鲸鱼' : '显示悬浮鲸鱼', run: () => applyLiveSetting({ floatEnabled: !settings.floatEnabled }, settings.floatEnabled === false ? '悬浮鲸鱼已显示' : '悬浮鲸鱼已隐藏') },
+    { t: settings.hotkeySummon !== false ? '关闭全局快捷键呼出' : '开启全局快捷键呼出', k: 'hotkey Ctrl+Alt+J', run: () => applyLiveSetting({ hotkeySummon: !(settings.hotkeySummon !== false) }, settings.hotkeySummon === false ? '全局快捷键已开启' : '全局快捷键已关闭') },
+    { t: settings.notifyServiceState !== false ? '关闭服务状态通知' : '开启服务状态通知', run: () => applyLiveSetting({ notifyServiceState: !(settings.notifyServiceState !== false) }, settings.notifyServiceState === false ? '服务通知已开启' : '服务通知已关闭') },
+    { t: '导出配置备份', run: async () => { const r = await desktop.exportSettings().catch(() => null); toast(r?.ok ? '配置已导出' : r?.error ? `导出失败：${r.error}` : '已取消') } },
+    { t: '导入配置备份', run: async () => { const r = await desktop.importSettings().catch(() => null); if (!r || !r.ok) { if (r?.error) toast(r.error); return } settings = await desktop.getSettings(); fillSettingsForm(settings); applyZoom(settings.zoomFactor); applySkin(settings.skin); if (settings.targetUrl !== gui.getURL()) { loadedOnce = false; setState('connecting'); gui.src = settings.targetUrl; offlineUrl.textContent = settings.targetUrl } else setState('online'); toast(`已导入 ${r.applied.length} 项设置`) } },
+    { t: '检查更新', run: async () => { toast('正在检查更新…'); await desktop.checkUpdate().catch(() => {}) } },
+    { t: '收起到托盘', run: () => desktop.close() },
+  ]
+}
+
+// 子序列模糊匹配：命中打分（前缀 > 词首 > 子序列），未命中返回 -1
+function fuzzyScore(query, text) {
+  if (!query) return 0
+  const t = text.toLowerCase()
+  const q = query.toLowerCase()
+  const idx = t.indexOf(q)
+  if (idx === 0) return 100
+  if (idx > 0 && /[\s·：:\-_/]/.test(t[idx - 1])) return 80
+  if (idx > 0) return 60
+  let ti = 0, score = 30
+  for (const ch of q) {
+    ti = t.indexOf(ch, ti)
+    if (ti < 0) return -1
+    ti++
+  }
+  return score
+}
+
+function paletteRender() {
+  const q = paletteIn.value.trim()
+  paletteItems = buildCommands()
+    .map((c) => ({ c, s: Math.max(fuzzyScore(q, c.t), c.k ? fuzzyScore(q, c.k) : -1) }))
+    .filter((x) => x.s >= 0)
+    .sort((a, b) => b.s - a.s)
+    .map((x) => x.c)
+  paletteActive = 0
+  if (!paletteItems.length) {
+    paletteList.innerHTML = '<div class="palette-empty">没有匹配的命令</div>'
+    return
+  }
+  paletteList.innerHTML = ''
+  paletteItems.forEach((c, i) => {
+    const div = document.createElement('div')
+    div.className = 'palette-item' + (i === paletteActive ? ' active' : '')
+    div.innerHTML = `<span>${c.t}</span>${c.hint ? `<span class="pi-hint">${c.hint}</span>` : ''}`
+    div.addEventListener('click', () => paletteRun(i))
+    div.addEventListener('mousemove', () => {
+      if (paletteActive === i) return
+      paletteActive = i
+      paletteList.querySelectorAll('.palette-item').forEach((el, j) => el.classList.toggle('active', j === paletteActive))
+    })
+    paletteList.appendChild(div)
+  })
+  paletteList.querySelector('.active')?.scrollIntoView({ block: 'nearest' })
+}
+function paletteMove(delta) {
+  if (!paletteItems.length) return
+  paletteActive = (paletteActive + delta + paletteItems.length) % paletteItems.length
+  paletteList.querySelectorAll('.palette-item').forEach((el, j) => el.classList.toggle('active', j === paletteActive))
+  paletteList.querySelectorAll('.palette-item')[paletteActive]?.scrollIntoView({ block: 'nearest' })
+}
+function paletteRun(i) {
+  const cmd = paletteItems[i]
+  closePalette()
+  if (cmd) cmd.run()
+}
+function openPalette() {
+  closeFind()
+  paletteEl.classList.remove('hidden')
+  paletteIn.value = ''
+  paletteRender()
+  setTimeout(() => paletteIn.focus(), 40)
+}
+function closePalette() {
+  paletteEl.classList.add('hidden')
+  paletteIn.blur()
+}
+
 // ---------------- 初始化 ----------------
 async function init() {
   settings = await desktop.getSettings()
@@ -583,12 +734,26 @@ async function init() {
 
   // 键盘
   document.addEventListener('keydown', (e) => {
-    // Esc：先关设置，再关终端（若有），避免层层叠弹窗
+    const paletteOpen = !$('palette').classList.contains('hidden')
+    // Esc：命令面板 → 查找条 → 设置 → 终端（从上到下逐层关闭）
     if (e.key === 'Escape') {
+      if (paletteOpen) { closePalette(); return }
+      if (findOpen) { closeFind(); return }
       if ($('settings').classList.contains('open')) { closeSettings(); return }
       if (termOpen && !termBox.classList.contains('hidden')) { toggleTerm(false); return }
     }
     if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) { desktop.openDevTools(); return }
+    // 命令面板（设置弹窗打开时不抢占）
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
+      if ($('settings').classList.contains('open')) return
+      e.preventDefault(); openPalette(); return
+    }
+    // 页内查找（终端抽屉打开时不抢，避免被遮挡造成困惑；webview 内按键走 before-input-event 转发）
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f') {
+      const termVisible = termOpen && !termBox.classList.contains('hidden')
+      if ($('settings').classList.contains('open') || termVisible) return
+      e.preventDefault(); openFind(); return
+    }
     if (e.ctrlKey && !e.shiftKey && !$('settings').classList.contains('open')) {
       // 设置弹窗打开时禁用缩放快捷键，避免干扰滑块操作
       if (e.key === '=' || e.key === '+') { e.preventDefault(); zoomBy(0.05) }
@@ -596,6 +761,24 @@ async function init() {
       else if (e.key === '0') { e.preventDefault(); applyZoom(1); $('input-zoom').value = 100; updateZoomFill(); persistZoom() }
     }
   })
+
+  // 页内查找条交互
+  findIn.addEventListener('input', () => doFind())
+  findIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); doFind(!e.shiftKey) }
+  })
+  $('find-next').addEventListener('click', () => { findIn.focus(); doFind(true) })
+  $('find-prev').addEventListener('click', () => { findIn.focus(); doFind(false) })
+  $('find-close').addEventListener('click', closeFind)
+
+  // 命令面板交互
+  paletteIn.addEventListener('input', paletteRender)
+  paletteIn.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); paletteMove(1) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); paletteMove(-1) }
+    else if (e.key === 'Enter') { e.preventDefault(); paletteRun(paletteActive) }
+  })
+  $('palette').addEventListener('mousedown', (e) => { if (e.target === $('palette')) closePalette() })
 
   // 托盘命令
   desktop.onCommand((cmd) => {
@@ -665,6 +848,12 @@ function bindGui() {
 
   gui.addEventListener('did-navigate', updateNav)
   gui.addEventListener('did-navigate-in-page', updateNav)
+  bindUnreadTracking()
+  // 页内查找结果计数
+  gui.addEventListener('found-in-page', (e) => {
+    const r = e.result
+    findCount.textContent = r && r.matches ? `${r.activeMatchOrdinal}/${r.matches}` : ''
+  })
 
   // 键盘快捷键只在 webview 挂载时注册一次（dom-ready 每次导航都会触发，若在
   // 那里注册会导致 before-input-event 监听器不断累积、快捷键重复执行）
@@ -677,6 +866,12 @@ function bindGui() {
           e.preventDefault(); desktop.openGuiDevTools(); return
         }
         if (!input.control && !input.meta) return
+        // webview 内的 Ctrl+F / Ctrl+K 转给外壳（页内查找 / 命令面板）
+        if (!input.shift && !input.alt) {
+          const k = input.key.toLowerCase()
+          if (k === 'f') { e.preventDefault(); openFind(); return }
+          if (k === 'k') { e.preventDefault(); openPalette(); return }
+        }
         if (input.key === '=' || input.key === '+') { e.preventDefault(); zoomBy(0.05) }
         else if (input.key === '-') { e.preventDefault(); zoomBy(-0.05) }
         else if (input.key === '0') { e.preventDefault(); applyZoom(1); $('input-zoom').value = 100; updateZoomFill(); persistZoom() }

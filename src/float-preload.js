@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('float', {
   // 状态 & 事件
   getStatus: () => ipcRenderer.invoke('float:get-status'),
   onStatus: (cb) => ipcRenderer.on('dsh:status', (_e, s) => cb(s)),
+  // 未读消息（主窗收起时的角标联动）
+  onUnread: (cb) => ipcRenderer.on('float:unread', (_e, n) => cb(n)),
   // 控制
   toggleMain: () => ipcRenderer.send('float:toggle-main'),
   openSettings: () => ipcRenderer.send('float:open-settings'),

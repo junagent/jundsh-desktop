@@ -139,9 +139,19 @@ function buildIco(entries) {
 write('build/icon.ico', buildIco(pngs))
 
 // 托盘图标：白底圆角小方块 + 黑色鲸鱼（深浅托盘都可见）
+// status：null=无状态点（常规）；online=青蓝 / connecting=琥珀 / offline=灰红（右下角圆点）
 // 生成 32px 与 64px(@2x，高分屏自动选用)
-function traySvg(size) {
+const STATUS_COLORS = {
+  online: '#4CC2FF',
+  connecting: '#F5A623',
+  offline: '#D9645F',
+}
+function traySvg(size, status) {
   const { scale, cx, cy } = fit(size, size * 0.16)
+  const dot = status ? STATUS_COLORS[status] : null
+  const dotR = size * 0.14
+  const dotCx = size * 0.815
+  const dotCy = size * 0.815
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <defs>
     <linearGradient id="tbw" x1="0" y1="0" x2="1" y2="1">
@@ -154,15 +164,34 @@ function traySvg(size) {
   <g transform="translate(${cx} ${cy}) scale(${scale})">
     <path d="${d}" fill="#0B1220"/>
   </g>
+  ${dot ? `<circle cx="${dotCx}" cy="${dotCy}" r="${dotR * 1.22}" fill="#FFFFFF"/>
+  <circle cx="${dotCx}" cy="${dotCy}" r="${dotR}" fill="${dot}"/>` : ''}
 </svg>
 `
 }
 {
   write('build/tray.png', await sharp(Buffer.from(traySvg(32))).png().toBuffer())
   write('build/tray@2x.png', await sharp(Buffer.from(traySvg(64))).png().toBuffer())
+  for (const st of Object.keys(STATUS_COLORS)) {
+    write(`build/tray-${st}.png`, await sharp(Buffer.from(traySvg(32, st))).png().toBuffer())
+    write(`build/tray-${st}@2x.png`, await sharp(Buffer.from(traySvg(64, st))).png().toBuffer())
+  }
 }
 
+// 任务栏未读角标（主窗 setOverlayIcon）：纯红圆 + 白色高光内环
+function overlayBadgeSvg(size) {
+  const r = size * 0.42
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="#E5484D"/>
+  <circle cx="${size / 2}" cy="${size / 2}" r="${r * 0.72}" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="${size * 0.055}"/>
+</svg>
+`
+}
+write('build/overlay-unread.png', await sharp(Buffer.from(overlayBadgeSvg(32))).png().toBuffer())
+
 console.log('图标生成完成:')
-for (const f of ['build/icon.ico', 'build/icon.png', 'build/tray.png', 'build/tray@2x.png', 'assets/whale-white.svg']) {
+for (const f of ['build/icon.ico', 'build/icon.png', 'build/tray.png', 'build/tray@2x.png',
+  'build/tray-online.png', 'build/tray-connecting.png', 'build/tray-offline.png', 'build/overlay-unread.png',
+  'assets/whale-white.svg']) {
   console.log('  ', f, fs.statSync(path.join(root, f)).size, 'bytes')
 }

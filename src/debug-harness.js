@@ -97,6 +97,14 @@ async function shellDomProbe(mainWindow) {
             diagSummary,
             termSummary,
             skinSummary,
+            uiExtras: {
+              findbar: !!q('#findbar'),
+              findHidden: q('#findbar')?.classList.contains('hidden'),
+              palette: !!q('#palette'),
+              paletteListItems: document.querySelectorAll('#palette-list .palette-item').length,
+              jUnread: typeof window.JUnread !== 'undefined' ? 'ok' : 'missing',
+              titleNow: document.title,
+            },
           };
         })()`)
 }

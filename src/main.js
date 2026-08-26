@@ -100,6 +100,8 @@ function pushDshStatus(state) {
     lastTrayState = { alive: state.alive, port: state.port, lastError: state.lastError || null }
     refreshTrayMenu()
   }
+  // 托盘彩色状态点
+  setTrayStatus(state.alive ? 'online' : (state.mode !== 'external' && state.managed ? 'connecting' : 'offline'))
   maybeNotifyServiceState(state)
 }
 
@@ -316,6 +318,8 @@ function createMainWindow() {
 
   mainWindow.on('maximize', () => mainWindow?.webContents.send('window:maximized', true))
   mainWindow.on('unmaximize', () => mainWindow?.webContents.send('window:maximized', false))
+  // 用户看向主窗即清空未读（任务栏角标/托盘计数一并归零）
+  mainWindow.on('focus', () => applyUnread(0))
   mainWindow.on('enter-full-screen', () => mainWindow?.webContents.send('window:maximized', true))
   mainWindow.on('leave-full-screen', () => mainWindow?.webContents.send('window:maximized', false))
 
@@ -532,12 +536,42 @@ function fmtTray(sec) {
   return `${m}m${String(sec % 60).padStart(2, '0')}s`
 }
 
+// ---------------- 未读消息感知 ----------------
+// DSH 网页把未读数写进标题前缀（如 "(3) DeepSeek"），外壳解析后经 app:unread 上报；
+// 这里驱动任务栏角标 + 托盘 tooltip，并转发悬浮鲸加速呼吸灯。主窗聚焦 = 用户在看，立即清零。
+let unreadCount = 0
+const overlayBadge = () => nativeImage.createFromPath(buildDir('overlay-unread.png'))
+function applyUnread(n) {
+  n = Math.max(0, Math.min(999, parseInt(n, 10) || 0))
+  if (n === unreadCount) return
+  unreadCount = n
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setOverlayIcon(unreadCount > 0 ? overlayBadge() : null, unreadCount > 0 ? `${unreadCount} 条未读消息` : '')
+  }
+  updateTrayTooltip()
+  if (floatWindow && !floatWindow.isDestroyed()) floatWindow.webContents.send('float:unread', unreadCount)
+}
+function updateTrayTooltip() {
+  if (!tray) return
+  tray.setToolTip(`${APP_NAME} · DSH 桌面端${unreadCount > 0 ? ` · ${unreadCount} 条未读` : ''}`)
+}
+
 function createTray() {
   const icon = nativeImage.createFromPath(buildDir('tray.png'))
   tray = new Tray(icon)
-  tray.setToolTip(`${APP_NAME} · DSH 桌面端`)
+  updateTrayTooltip()
   refreshTrayMenu()
   tray.on('double-click', showMainWindow)
+}
+
+// 服务状态 → 托盘彩色状态点（online 青蓝 / connecting 琥珀 / offline 灰红；key 去重防闪烁）
+let lastTrayStatusKey = ''
+function setTrayStatus(key) {
+  if (!tray || key === lastTrayStatusKey) return
+  lastTrayStatusKey = key
+  const file = buildDir(key === 'idle' ? 'tray.png' : `tray-${key}.png`)
+  const img = nativeImage.createFromPath(file)
+  tray.setImage(img.isEmpty() ? nativeImage.createFromPath(buildDir('tray.png')) : img)
 }
 
 // 重建托盘菜单（悬浮开关状态变化后刷新，保证托盘与设置/悬浮窗一致）
@@ -735,6 +769,19 @@ function registerIpc() {
   }))
   ipcMain.on('app:open-external', guard((_e, url) => {
     if (typeof url === 'string' && /^https?:/i.test(url)) shell.openExternal(url)
+  }))
+  // 未读数上报（外壳从 webview 标题解析）；正在看主窗时忽略非零值，聚焦即清零
+  ipcMain.on('app:unread', guard((_e, n) => {
+    const focused = mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()
+    if (focused) applyUnread(0)
+    else applyUnread(n)
+  }))
+  // 检查更新（命令面板 / 托盘共用逻辑）
+  ipcMain.handle('app:check-update', guard(() => {
+    if (!app.isPackaged) { mainWindow.webContents.send('app:toast', '开发模式不检查更新'); return { ok: false } }
+    if (IS_PORTABLE) { mainWindow.webContents.send('app:toast', '便携版不支持自动更新，请下载安装版'); return { ok: false } }
+    autoUpdater.checkForUpdates().catch((err) => console.error('[jundsh] 检查更新出错:', err && err.message))
+    return { ok: true }
   }))
   ipcMain.on('app:gui-ready', guard(closeSplash))
   ipcMain.on('app:open-dev-tools', guard(() => mainWindow?.webContents.openDevTools({ mode: 'detach' })))

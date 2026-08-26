@@ -285,4 +285,6 @@ float.getWorkArea().then((wa) => {
 }).catch(() => {})
 float.onStatus(applyStatus)
 float.getStatus().then(applyStatus).catch(() => {})
+// 未读消息：html.unread 驱动呼吸灯加速（角标/托盘由主进程负责）
+float.onUnread((n) => document.documentElement.classList.toggle('unread', n > 0))
 buildMenu()

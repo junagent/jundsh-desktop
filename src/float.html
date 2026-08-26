@@ -67,6 +67,10 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.72; }
   }
+  /* 未读消息：呼吸灯加速（主窗收起时有新消息，一眼可辨） */
+  html.unread #whale.online { animation: floaty 4s ease-in-out infinite, pulse-glow 0.85s ease-in-out infinite; filter:
+      drop-shadow(0 6px 16px rgba(11, 18, 32, 0.42))
+      drop-shadow(0 0 30px var(--whale-glow-strong)); }
   /* 贴边吸附时的收起态 */
   html.snapped #whale { width: 34px; height: 34px; }
   html.snapped:not(:hover) #whale-shell { cursor: pointer; }

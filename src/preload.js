@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('desktop', {
   setSettings: (patch) => ipcRenderer.invoke('app:set-settings', patch),
   exportSettings: () => ipcRenderer.invoke('app:export-settings'),
   importSettings: () => ipcRenderer.invoke('app:import-settings'),
+  checkUpdate: () => ipcRenderer.invoke('app:check-update'),
+  reportUnread: (n) => ipcRenderer.send('app:unread', n),
   openExternal: (url) => ipcRenderer.send('app:open-external', url),
   guiReady: () => ipcRenderer.send('app:gui-ready'),
   openDevTools: () => ipcRenderer.send('app:open-dev-tools'),
