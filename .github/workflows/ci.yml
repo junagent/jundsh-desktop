@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # --ignore-scripts：跳过 electron 二进制下载与 sharp 原生构建，纯检查用不到
